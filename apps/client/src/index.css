@@ -1,0 +1,128 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #0a0a0a;
+  color: #c8c8c8;
+  font-family: "Courier New", Courier, monospace;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Start screen ─────────────────────────────────────── */
+
+.start-screen {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.start-screen h1 {
+  font-size: 2.5rem;
+  color: #f0c060;
+  letter-spacing: 0.1em;
+}
+
+.start-screen button {
+  padding: 0.75rem 2.5rem;
+  font-size: 1.1rem;
+  font-family: inherit;
+  background: #1a1a1a;
+  color: #f0c060;
+  border: 2px solid #f0c060;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.15s;
+}
+
+.start-screen button:hover:not(:disabled) {
+  background: #f0c060;
+  color: #0a0a0a;
+}
+
+.error {
+  color: #e05050;
+}
+
+/* ─── Game layout ──────────────────────────────────────── */
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+}
+
+/* ─── Status bar ───────────────────────────────────────── */
+
+.status-bar {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.95rem;
+  color: #a0c8a0;
+}
+
+/* ─── Map grid ─────────────────────────────────────────── */
+
+.game-map {
+  display: grid;
+  gap: 1px;
+  background: #111;
+  border: 2px solid #333;
+  padding: 2px;
+}
+
+.tile {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+  user-select: none;
+}
+
+.tile-floor  { color: #444; background: #0e0e0e; }
+.tile-wall   { color: #888; background: #1a1a1a; }
+.tile-player { color: #f0c060; background: #0e0e0e; }
+.tile-monster{ color: #e05050; background: #0e0e0e; }
+
+/* ─── Message log ──────────────────────────────────────── */
+
+.message-log {
+  width: 100%;
+  max-width: 400px;
+  max-height: 120px;
+  overflow-y: auto;
+  background: #111;
+  border: 1px solid #333;
+  padding: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.log-entry {
+  color: #a0a0a0;
+  line-height: 1.5;
+}
+
+.log-entry:first-child {
+  color: #c8c8c8;
+}
+
+/* ─── Controls hint ────────────────────────────────────── */
+
+.controls-hint {
+  font-size: 0.78rem;
+  color: #555;
+}
