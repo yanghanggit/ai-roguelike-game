@@ -9,6 +9,9 @@ build/
 out/
 .output/
 
+# Runtime temp files (game state snapshots, etc.)
+saves/
+
 # Turbo
 .turbo/
 
