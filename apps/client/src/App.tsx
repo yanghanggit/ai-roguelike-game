@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { GameState, StartGameResponse, ActionResponse } from "@roguelike/shared";
 
 // ─── Top bar ─────────────────────────────────────────────────────────────────
@@ -20,6 +20,12 @@ function TopBar({ state, onSettings }: { state: GameState; onSettings: () => voi
 // ─── Message log ─────────────────────────────────────────────────────────────
 
 function MessageLog({ log }: { log: string[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [log]);
+
   return (
     <div className="message-log">
       {log.map((msg, i) => (
@@ -27,6 +33,7 @@ function MessageLog({ log }: { log: string[] }) {
           {msg}
         </div>
       ))}
+      <div ref={bottomRef} />
     </div>
   );
 }

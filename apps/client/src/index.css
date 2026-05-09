@@ -187,7 +187,7 @@ body {
   line-height: 1.5;
 }
 
-.log-entry:first-child {
+.log-entry:last-child {
   color: #c8c8c8;
 }
 

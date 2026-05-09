@@ -92,7 +92,7 @@ export function createInitialState(sessionId: string): GameState {
       xp: 0,
     },
     map: createMap(mapSize),
-    log: ["Welcome to the dungeon!"],
+    log: ["欢迎来到地牢！"],
   };
 }
 
@@ -112,13 +112,13 @@ app.post("/game/start", (_req, res) => {
 });
 
 const LOG_MESSAGES: Record<TileType, string> = {
-  [TileType.Floor]: "The floor is empty.",
-  [TileType.Wall]: "A solid wall blocks the path.",
-  [TileType.Entrance]: "An entrance to the next level!",
-  [TileType.Monster]: "A monster lurks here!",
-  [TileType.Treasure]: "A treasure chest glitters!",
-  [TileType.Item]: "You found an item!",
-  [TileType.Special]: "Something unusual stirs...",
+  [TileType.Floor]: "地面空无一物。",
+  [TileType.Wall]: "坚固的墙壁挡住了去路。",
+  [TileType.Entrance]: "通往下一层的入口！",
+  [TileType.Monster]: "一只怪物潜伏于此！",
+  [TileType.Treasure]: "一个宝箱在闪闪发光！",
+  [TileType.Item]: "你发现了一件物品！",
+  [TileType.Special]: "有些不寻常的东西在涌动……",
 };
 
 app.post("/game/action", (req, res) => {
@@ -149,7 +149,7 @@ app.post("/game/action", (req, res) => {
     tile.revealed = true;
     state.turn += 1;
     const msg = LOG_MESSAGES[tile.type];
-    state.log = [msg, ...state.log].slice(0, 20);
+    state.log = [...state.log, msg].slice(-20);
 
     res.json({ state } satisfies ActionResponse);
     return;
