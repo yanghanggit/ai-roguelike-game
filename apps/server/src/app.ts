@@ -7,6 +7,8 @@ import type {
   ActionResponse,
   GameMap,
   Tile,
+  TileType,
+  MapSize,
 } from "@roguelike/shared";
 
 export const app = express();
@@ -20,20 +22,54 @@ export const sessions = new Map<string, GameState>();
 
 // ─── Map generation ───────────────────────────────────────────────────────────
 
-export function createStarterMap(): GameMap {
-  const ROWS = 10;
-  const COLS = 10;
-  const map: GameMap = [];
+const GLYPHS: Record<TileType, string> = {
+  floor: "·",
+  wall: "#",
+  entrance: ">",
+  monster: "E",
+  treasure: "$",
+  item: "!",
+  special: "?",
+};
 
-  for (let y = 0; y < ROWS; y++) {
+const WEIGHTS: [TileType, number][] = [
+  ["floor", 40],
+  ["wall", 20],
+  ["monster", 20],
+  ["treasure", 10],
+  ["item", 5],
+  ["special", 5],
+];
+
+function weightedRandom(): TileType {
+  const rand = Math.random() * 100;
+  let cumulative = 0;
+  for (const [type, weight] of WEIGHTS) {
+    cumulative += weight;
+    if (rand < cumulative) return type;
+  }
+  return "floor";
+}
+
+export function createMap(size: MapSize): GameMap {
+  const total = size * size;
+  const entranceCount = size === 3 ? 1 : 2;
+
+  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => "entrance");
+  for (let i = entranceCount; i < total; i++) pool.push(weightedRandom());
+
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
+
+  const map: GameMap = [];
+  for (let y = 0; y < size; y++) {
     const row: Tile[] = [];
-    for (let x = 0; x < COLS; x++) {
-      const isWall = x === 0 || x === COLS - 1 || y === 0 || y === ROWS - 1;
-      row.push(
-        isWall
-          ? { type: "wall", glyph: "#", passable: false }
-          : { type: "floor", glyph: ".", passable: true },
-      );
+    for (let x = 0; x < size; x++) {
+      const type = pool[y * size + x]!;
+      row.push({ type, glyph: GLYPHS[type], revealed: false });
     }
     map.push(row);
   }
@@ -41,11 +77,13 @@ export function createStarterMap(): GameMap {
 }
 
 export function createInitialState(sessionId: string): GameState {
+  const mapSize: MapSize = 4;
   return {
     sessionId,
     turn: 0,
+    mapSize,
+    depth: 1,
     player: {
-      position: { x: 1, y: 1 },
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -53,8 +91,7 @@ export function createInitialState(sessionId: string): GameState {
       level: 1,
       xp: 0,
     },
-    map: createStarterMap(),
-    monsters: [],
+    map: createMap(mapSize),
     log: ["Welcome to the dungeon!"],
   };
 }
@@ -74,6 +111,16 @@ app.post("/game/start", (_req, res) => {
   res.json(response);
 });
 
+const LOG_MESSAGES: Record<TileType, string> = {
+  floor: "The floor is empty.",
+  wall: "A solid wall blocks the path.",
+  entrance: "An entrance to the next level!",
+  monster: "A monster lurks here!",
+  treasure: "A treasure chest glitters!",
+  item: "You found an item!",
+  special: "Something unusual stirs...",
+};
+
 app.post("/game/action", (req, res) => {
   const body = req.body as ActionRequest;
   const { sessionId, action } = body;
@@ -84,33 +131,29 @@ app.post("/game/action", (req, res) => {
     return;
   }
 
-  const log: string[] = [];
+  if (action.type === "reveal") {
+    const { x, y } = action;
+    const row = state.map[y];
+    const tile = row?.[x];
 
-  if (action.type === "move") {
-    const deltas: Record<string, { dx: number; dy: number }> = {
-      north: { dx: 0, dy: -1 },
-      south: { dx: 0, dy: 1 },
-      west: { dx: -1, dy: 0 },
-      east: { dx: 1, dy: 0 },
-    };
-    const { dx, dy } = deltas[action.direction];
-    const nx = state.player.position.x + dx;
-    const ny = state.player.position.y + dy;
-    const tile = state.map[ny]?.[nx];
-
-    if (tile?.passable) {
-      state.player.position = { x: nx, y: ny };
-      log.push(`You move ${action.direction}.`);
-    } else {
-      log.push("Blocked!");
+    if (!tile) {
+      res.status(400).json({ error: "Invalid tile coordinates" });
+      return;
     }
-  } else if (action.type === "wait") {
-    log.push("You wait a turn.");
+
+    if (tile.revealed) {
+      res.json({ state } satisfies ActionResponse);
+      return;
+    }
+
+    tile.revealed = true;
+    state.turn += 1;
+    const msg = LOG_MESSAGES[tile.type];
+    state.log = [msg, ...state.log].slice(0, 20);
+
+    res.json({ state } satisfies ActionResponse);
+    return;
   }
 
-  state.turn += 1;
-  state.log = [...log, ...state.log].slice(0, 20);
-
-  const response: ActionResponse = { state };
-  res.json(response);
+  res.status(400).json({ error: "Unknown action type" });
 });

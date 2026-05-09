@@ -1,26 +1,31 @@
-export { PORTS } from "./config.js";
+import type { MapSize } from "./config.js";
+export { PORTS, MAP_SIZES } from "./config.js";
+export type { MapSize } from "./config.js";
 
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
-export type TileType = "floor" | "wall" | "door" | "stairs";
+export type TileType =
+  | "floor"
+  | "wall"
+  | "entrance"
+  | "monster"
+  | "treasure"
+  | "item"
+  | "special";
 
 export interface Tile {
   type: TileType;
   glyph: string;
-  passable: boolean;
+  revealed: boolean;
 }
 
-// ─── Position ────────────────────────────────────────────────────────────────
+// ─── Map ─────────────────────────────────────────────────────────────────────
 
-export interface Position {
-  x: number;
-  y: number;
-}
+export type GameMap = Tile[][];
 
 // ─── Player ──────────────────────────────────────────────────────────────────
 
 export interface Player {
-  position: Position;
   hp: number;
   maxHp: number;
   attack: number;
@@ -29,50 +34,27 @@ export interface Player {
   xp: number;
 }
 
-// ─── Monster ─────────────────────────────────────────────────────────────────
-
-export interface Monster {
-  id: string;
-  position: Position;
-  hp: number;
-  maxHp: number;
-  attack: number;
-  defense: number;
-  glyph: string;
-  name: string;
-}
-
-// ─── Map ─────────────────────────────────────────────────────────────────────
-
-export type GameMap = Tile[][];
-
 // ─── Game State ──────────────────────────────────────────────────────────────
 
 export interface GameState {
   sessionId: string;
   turn: number;
+  mapSize: MapSize;
+  depth: number;
   player: Player;
   map: GameMap;
-  monsters: Monster[];
   log: string[];
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
-export type Direction = "north" | "south" | "east" | "west";
-
-export type ActionType = "move" | "wait" | "attack";
-
-export interface MoveAction {
-  type: "move";
-  direction: Direction;
+export interface RevealAction {
+  type: "reveal";
+  x: number;
+  y: number;
 }
 
-export interface WaitAction {
-  type: "wait";
-}
-
-export type GameAction = MoveAction | WaitAction;
+export type GameAction = RevealAction;
 
 // ─── API Shapes ──────────────────────────────────────────────────────────────
 

@@ -1,48 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
-import type { GameState, StartGameResponse, ActionResponse, Direction } from "@roguelike/shared";
+import { useState, useCallback } from "react";
+import type { GameState, StartGameResponse, ActionResponse } from "@roguelike/shared";
 
-const GLYPH_CLASS: Record<string, string> = {
-  "@": "tile-player",
-  "#": "tile-wall",
-  ".": "tile-floor",
-  E: "tile-monster",
-};
+// ─── Top bar ─────────────────────────────────────────────────────────────────
 
-function GameMap({ state }: { state: GameState }) {
-  const cols = state.map[0]?.length ?? 0;
-
-  const cells = state.map.flatMap((row, y) =>
-    row.map((tile, x) => {
-      const isPlayer = state.player.position.x === x && state.player.position.y === y;
-      const monster = state.monsters.find((m) => m.position.x === x && m.position.y === y);
-      const glyph = isPlayer ? "@" : monster ? monster.glyph : tile.glyph;
-      const cls = GLYPH_CLASS[glyph] ?? "tile-floor";
-      return (
-        <div key={`${x}-${y}`} className={`tile ${cls}`}>
-          {glyph}
-        </div>
-      );
-    }),
-  );
-
+function TopBar({ state, onSettings }: { state: GameState; onSettings: () => void }) {
+  const { hp, maxHp, attack, defense } = state.player;
   return (
-    <div className="game-map" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {cells}
-    </div>
-  );
-}
-
-function StatusBar({ state }: { state: GameState }) {
-  return (
-    <div className="status-bar">
+    <div className="top-bar">
       <span>
-        HP: {state.player.hp}/{state.player.maxHp}
+        HP: {hp}/{maxHp} · ATK: {attack} · DEF: {defense}
       </span>
-      <span>Level: {state.player.level}</span>
-      <span>Turn: {state.turn}</span>
+      <button className="settings-btn" onClick={onSettings}>
+        设置
+      </button>
     </div>
   );
 }
+
+// ─── Message log ─────────────────────────────────────────────────────────────
 
 function MessageLog({ log }: { log: string[] }) {
   return (
@@ -56,32 +31,43 @@ function MessageLog({ log }: { log: string[] }) {
   );
 }
 
-type DPadProps = {
-  onMove: (dir: Direction) => void;
-  onWait: () => void;
-};
+// ─── Game map ─────────────────────────────────────────────────────────────────
 
-function DPad({ onMove, onWait }: DPadProps) {
+function GameMap({
+  state,
+  onReveal,
+}: {
+  state: GameState;
+  onReveal: (x: number, y: number) => void;
+}) {
   return (
-    <div className="dpad">
-      <button className="dpad-btn dpad-up" onPointerDown={() => onMove("north")}>
-        ↑
-      </button>
-      <button className="dpad-btn dpad-left" onPointerDown={() => onMove("west")}>
-        ←
-      </button>
-      <button className="dpad-btn dpad-wait" onPointerDown={onWait}>
-        wait
-      </button>
-      <button className="dpad-btn dpad-right" onPointerDown={() => onMove("east")}>
-        →
-      </button>
-      <button className="dpad-btn dpad-down" onPointerDown={() => onMove("south")}>
-        ↓
-      </button>
+    <div
+      className="game-map"
+      style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}
+    >
+      {state.map.flatMap((row, y) =>
+        row.map((tile, x) => {
+          if (!tile.revealed) {
+            return (
+              <div
+                key={`${x}-${y}`}
+                className="tile tile-hidden"
+                onClick={() => onReveal(x, y)}
+              />
+            );
+          }
+          return (
+            <div key={`${x}-${y}`} className={`tile tile-revealed tile-${tile.type}`}>
+              {tile.glyph}
+            </div>
+          );
+        }),
+      )}
     </div>
   );
 }
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
@@ -103,8 +89,8 @@ export default function App() {
     }
   }, []);
 
-  const sendAction = useCallback(
-    async (direction: Direction) => {
+  const sendReveal = useCallback(
+    async (x: number, y: number) => {
       if (!state) return;
       try {
         const res = await fetch("/game/action", {
@@ -112,7 +98,7 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: state.sessionId,
-            action: { type: "move", direction },
+            action: { type: "reveal", x, y },
           }),
         });
         if (!res.ok) throw new Error("Action failed");
@@ -124,45 +110,6 @@ export default function App() {
     },
     [state],
   );
-
-  const sendWait = useCallback(async () => {
-    if (!state) return;
-    try {
-      const res = await fetch("/game/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: state.sessionId, action: { type: "wait" } }),
-      });
-      if (!res.ok) throw new Error("Action failed");
-      const data: ActionResponse = await res.json();
-      setState(data.state);
-    } catch (e) {
-      setError(String(e));
-    }
-  }, [state]);
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (!state) return;
-      const map: Record<string, Direction> = {
-        ArrowUp: "north",
-        ArrowDown: "south",
-        ArrowLeft: "west",
-        ArrowRight: "east",
-        w: "north",
-        s: "south",
-        a: "west",
-        d: "east",
-      };
-      const dir = map[e.key];
-      if (dir) {
-        e.preventDefault();
-        sendAction(dir);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [state, sendAction]);
 
   if (!state) {
     return (
@@ -178,11 +125,9 @@ export default function App() {
 
   return (
     <div className="game-container">
-      <StatusBar state={state} />
-      <GameMap state={state} />
+      <TopBar state={state} onSettings={() => console.log("settings")} />
       <MessageLog log={state.log} />
-      <DPad onMove={sendAction} onWait={sendWait} />
-      <div className="controls-hint">Desktop: Arrow keys or WASD</div>
+      <GameMap state={state} onReveal={sendReveal} />
     </div>
   );
 }

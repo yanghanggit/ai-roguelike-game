@@ -5,3 +5,7 @@ export const PORTS = {
   /** Vite client dev server */
   client: 5173,
 } as const;
+
+/** The two valid map sizes. All dungeon rooms are one of these. */
+export const MAP_SIZES = [3, 4] as const;
+export type MapSize = 3 | 4;
