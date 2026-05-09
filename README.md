@@ -37,6 +37,9 @@ pnpm cli health -p 3001       # 指定端口检查
 pnpm cli lint                 # 全包 TypeScript 类型检查
 pnpm cli format               # 格式化所有文件（首次整理 or 大合并后）
 pnpm cli check                # 仅处理 git staged 文件（提交前运行）
+pnpm cli test                            # 运行全部测试
+pnpm cli test --filter @roguelike/server # 只跑 server 测试
+pnpm cli test --watch                    # watch 模式（写代码时保持运行）
 ```
 
 ## 日常工作流

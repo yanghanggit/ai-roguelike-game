@@ -90,6 +90,24 @@ program
     exec("pnpm turbo run lint");
   });
 
+// ─── test ─────────────────────────────────────────────────────────────────────
+
+program
+  .command("test")
+  .description("Run all tests (Vitest) across packages")
+  .option("--watch", "Run in watch mode")
+  .option("--filter <package>", "Run tests for a specific package (e.g. @roguelike/server)")
+  .action((opts) => {
+    if (opts.filter) {
+      const vitestCmd = opts.watch ? "test:watch" : "test";
+      exec(`pnpm --filter ${opts.filter} ${vitestCmd}`);
+    } else if (opts.watch) {
+      run("pnpm", ["turbo", "run", "test:watch"], ROOT);
+    } else {
+      exec("pnpm turbo run test");
+    }
+  });
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function exec(cmd: string) {
