@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { execSync, spawn } from "node:child_process";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PORTS } from "../packages/shared/src/config.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -16,8 +17,8 @@ program.name("roguelike").description("Dev CLI for ai-roguelike-game monorepo").
 program
   .command("dev")
   .description("Start client + server in development mode")
-  .option("--client-only", "Start only the client (port 5173)")
-  .option("--server-only", "Start only the server (port 3001)")
+  .option("--client-only", `Start only the client (port ${PORTS.client})`)
+  .option("--server-only", `Start only the server (port ${PORTS.server})`)
   .action((opts) => {
     if (opts.clientOnly) {
       run("pnpm", ["--filter", "@roguelike/client", "dev"], ROOT);
@@ -50,7 +51,7 @@ program
 program
   .command("health")
   .description("Check if the dev server is responding")
-  .option("-p, --port <port>", "Server port", "3001")
+  .option("-p, --port <port>", "Server port", String(PORTS.server))
   .action(async (opts) => {
     const url = `http://localhost:${opts.port}/health`;
     try {
@@ -105,6 +106,23 @@ program
       run("pnpm", ["turbo", "run", "test:watch"], ROOT);
     } else {
       exec("pnpm turbo run test");
+    }
+  });
+
+// ─── kill ─────────────────────────────────────────────────────────────────────
+
+program
+  .command("kill")
+  .description("Kill any process holding the dev ports (EADDRINUSE fix)")
+  .action(() => {
+    const ports = [PORTS.server, PORTS.client];
+    for (const port of ports) {
+      try {
+        execSync(`lsof -ti :${port} | xargs kill -9`, { stdio: "ignore" });
+        console.log(`✓ Freed port ${port}`);
+      } catch {
+        console.log(`  Port ${port} was not in use`);
+      }
     }
   });
 

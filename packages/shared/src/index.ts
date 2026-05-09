@@ -1,3 +1,5 @@
+export { PORTS } from "./config.js";
+
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
 export type TileType = "floor" | "wall" | "door" | "stairs";
