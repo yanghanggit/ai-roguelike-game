@@ -67,12 +67,25 @@ function GameMap({
   );
 }
 
+// ─── Settings modal ──────────────────────────────────────────────────────────
+
+function SettingsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const startGame = useCallback(async () => {
     setLoading(true);
@@ -125,7 +138,8 @@ export default function App() {
 
   return (
     <div className="game-container">
-      <TopBar state={state} onSettings={() => console.log("settings")} />
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      <TopBar state={state} onSettings={() => setShowSettings(true)} />
       <MessageLog log={state.log} />
       <GameMap state={state} onReveal={sendReveal} />
     </div>
