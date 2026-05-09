@@ -42,6 +42,20 @@ pnpm cli test --filter @roguelike/server # 只跑 server 测试
 pnpm cli test --watch                    # watch 模式（写代码时保持运行）
 ```
 
+## 故障排查
+
+### 端口被占用（EADDRINUSE）
+
+`pnpm cli dev` 正常退出（Ctrl+C）会同时杀掉子进程。但如果上次是**直接关终端窗口**或**异常崩溃**，子进程会留在后台继续占用端口，下次启动就会报错。
+
+```bash
+# 查看并杀掉占用 3001 / 5173 的进程
+lsof -ti :3001 | xargs kill -9 2>/dev/null
+lsof -ti :5173 | xargs kill -9 2>/dev/null
+```
+
+之后重新运行 `pnpm cli dev` 即可。
+
 ## 日常工作流
 
 git add .

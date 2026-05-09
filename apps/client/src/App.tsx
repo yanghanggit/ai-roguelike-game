@@ -56,6 +56,33 @@ function MessageLog({ log }: { log: string[] }) {
   );
 }
 
+type DPadProps = {
+  onMove: (dir: Direction) => void;
+  onWait: () => void;
+};
+
+function DPad({ onMove, onWait }: DPadProps) {
+  return (
+    <div className="dpad">
+      <button className="dpad-btn dpad-up" onPointerDown={() => onMove("north")}>
+        ↑
+      </button>
+      <button className="dpad-btn dpad-left" onPointerDown={() => onMove("west")}>
+        ←
+      </button>
+      <button className="dpad-btn dpad-wait" onPointerDown={onWait}>
+        wait
+      </button>
+      <button className="dpad-btn dpad-right" onPointerDown={() => onMove("east")}>
+        →
+      </button>
+      <button className="dpad-btn dpad-down" onPointerDown={() => onMove("south")}>
+        ↓
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,6 +125,22 @@ export default function App() {
     [state],
   );
 
+  const sendWait = useCallback(async () => {
+    if (!state) return;
+    try {
+      const res = await fetch("/game/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: state.sessionId, action: { type: "wait" } }),
+      });
+      if (!res.ok) throw new Error("Action failed");
+      const data: ActionResponse = await res.json();
+      setState(data.state);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [state]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!state) return;
@@ -138,7 +181,8 @@ export default function App() {
       <StatusBar state={state} />
       <GameMap state={state} />
       <MessageLog log={state.log} />
-      <div className="controls-hint">Move: Arrow keys or WASD</div>
+      <DPad onMove={sendAction} onWait={sendWait} />
+      <div className="controls-hint">Desktop: Arrow keys or WASD</div>
     </div>
   );
 }

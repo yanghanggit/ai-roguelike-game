@@ -10,10 +10,11 @@ body {
   background: #0a0a0a;
   color: #c8c8c8;
   font-family: "Courier New", Courier, monospace;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-x: hidden;
 }
 
 /* ─── Start screen ─────────────────────────────────────── */
@@ -83,12 +84,12 @@ body {
 }
 
 .tile {
-  width: 32px;
-  height: 32px;
+  width: 7.5vmin;
+  height: 7.5vmin;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 4.5vmin;
   font-weight: bold;
   user-select: none;
 }
@@ -114,8 +115,8 @@ body {
 
 .message-log {
   width: 100%;
-  max-width: 400px;
-  max-height: 120px;
+  max-width: min(400px, 90vw);
+  max-height: 100px;
   overflow-y: auto;
   background: #111;
   border: 1px solid #333;
@@ -138,3 +139,42 @@ body {
   font-size: 0.78rem;
   color: #555;
 }
+
+/* ─── D-pad ────────────────────────────────────────────── */
+
+.dpad {
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left center right"
+    ". down .";
+  grid-template-columns: repeat(3, 3.5rem);
+  grid-template-rows: repeat(3, 3.5rem);
+  gap: 4px;
+  touch-action: none;
+}
+
+.dpad-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  color: #c8c8c8;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s;
+}
+
+.dpad-btn:active {
+  background: #3a3a3a;
+}
+
+.dpad-up    { grid-area: up; }
+.dpad-down  { grid-area: down; }
+.dpad-left  { grid-area: left; }
+.dpad-right { grid-area: right; }
+.dpad-wait  { grid-area: center; font-size: 0.7rem; color: #666; }
