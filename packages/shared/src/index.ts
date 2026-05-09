@@ -4,14 +4,17 @@ export type { MapSize } from "./config.js";
 
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
-export type TileType =
-  | "floor"
-  | "wall"
-  | "entrance"
-  | "monster"
-  | "treasure"
-  | "item"
-  | "special";
+export const TileType = {
+  Floor: "floor",
+  Wall: "wall",
+  Entrance: "entrance",
+  Monster: "monster",
+  Treasure: "treasure",
+  Item: "item",
+  Special: "special",
+} as const;
+
+export type TileType = (typeof TileType)[keyof typeof TileType];
 
 export interface Tile {
   type: TileType;

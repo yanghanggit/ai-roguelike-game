@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { TileType } from "@roguelike/shared";
 import type {
   GameState,
   StartGameResponse,
@@ -7,7 +8,6 @@ import type {
   ActionResponse,
   GameMap,
   Tile,
-  TileType,
   MapSize,
 } from "@roguelike/shared";
 
@@ -23,22 +23,22 @@ export const sessions = new Map<string, GameState>();
 // ─── Map generation ───────────────────────────────────────────────────────────
 
 const GLYPHS: Record<TileType, string> = {
-  floor: "·",
-  wall: "#",
-  entrance: ">",
-  monster: "E",
-  treasure: "$",
-  item: "!",
-  special: "?",
+  [TileType.Floor]: "·",
+  [TileType.Wall]: "#",
+  [TileType.Entrance]: ">",
+  [TileType.Monster]: "E",
+  [TileType.Treasure]: "$",
+  [TileType.Item]: "!",
+  [TileType.Special]: "?",
 };
 
 const WEIGHTS: [TileType, number][] = [
-  ["floor", 40],
-  ["wall", 20],
-  ["monster", 20],
-  ["treasure", 10],
-  ["item", 5],
-  ["special", 5],
+  [TileType.Floor, 40],
+  [TileType.Wall, 20],
+  [TileType.Monster, 20],
+  [TileType.Treasure, 10],
+  [TileType.Item, 5],
+  [TileType.Special, 5],
 ];
 
 function weightedRandom(): TileType {
@@ -48,14 +48,14 @@ function weightedRandom(): TileType {
     cumulative += weight;
     if (rand < cumulative) return type;
   }
-  return "floor";
+  return TileType.Floor;
 }
 
 export function createMap(size: MapSize): GameMap {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;
 
-  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => "entrance");
+  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => TileType.Entrance);
   for (let i = entranceCount; i < total; i++) pool.push(weightedRandom());
 
   // Fisher-Yates shuffle
@@ -112,13 +112,13 @@ app.post("/game/start", (_req, res) => {
 });
 
 const LOG_MESSAGES: Record<TileType, string> = {
-  floor: "The floor is empty.",
-  wall: "A solid wall blocks the path.",
-  entrance: "An entrance to the next level!",
-  monster: "A monster lurks here!",
-  treasure: "A treasure chest glitters!",
-  item: "You found an item!",
-  special: "Something unusual stirs...",
+  [TileType.Floor]: "The floor is empty.",
+  [TileType.Wall]: "A solid wall blocks the path.",
+  [TileType.Entrance]: "An entrance to the next level!",
+  [TileType.Monster]: "A monster lurks here!",
+  [TileType.Treasure]: "A treasure chest glitters!",
+  [TileType.Item]: "You found an item!",
+  [TileType.Special]: "Something unusual stirs...",
 };
 
 app.post("/game/action", (req, res) => {

@@ -140,13 +140,34 @@ body {
 }
 
 /* Tile type colours */
-.tile-floor    { color: #444;    background: #0e0e0e; }
-.tile-wall     { color: #666;    background: #222;    }
-.tile-entrance { color: #60c0f0; background: #0a1520; }
-.tile-monster  { color: #e05050; background: #0e0e0e; }
-.tile-treasure { color: #f0c060; background: #0e0e0e; }
-.tile-item     { color: #60e060; background: #0e0e0e; }
-.tile-special  { color: #c060f0; background: #0e0e0e; }
+.tile-floor {
+  color: #444;
+  background: #0e0e0e;
+}
+.tile-wall {
+  color: #666;
+  background: #222;
+}
+.tile-entrance {
+  color: #60c0f0;
+  background: #0a1520;
+}
+.tile-monster {
+  color: #e05050;
+  background: #0e0e0e;
+}
+.tile-treasure {
+  color: #f0c060;
+  background: #0e0e0e;
+}
+.tile-item {
+  color: #60e060;
+  background: #0e0e0e;
+}
+.tile-special {
+  color: #c060f0;
+  background: #0e0e0e;
+}
 
 /* ─── Message log ──────────────────────────────────────── */
 
@@ -210,4 +231,3 @@ body {
   color: #c8c8c8;
   background: #2a2a2a;
 }
-

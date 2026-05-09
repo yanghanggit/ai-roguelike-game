@@ -41,19 +41,12 @@ function GameMap({
   onReveal: (x: number, y: number) => void;
 }) {
   return (
-    <div
-      className="game-map"
-      style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}
-    >
+    <div className="game-map" style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}>
       {state.map.flatMap((row, y) =>
         row.map((tile, x) => {
           if (!tile.revealed) {
             return (
-              <div
-                key={`${x}-${y}`}
-                className="tile tile-hidden"
-                onClick={() => onReveal(x, y)}
-              />
+              <div key={`${x}-${y}`} className="tile tile-hidden" onClick={() => onReveal(x, y)} />
             );
           }
           return (
@@ -73,7 +66,9 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
+        <button className="modal-close" onClick={onClose}>
+          ✕
+        </button>
       </div>
     </div>
   );
