@@ -26,7 +26,11 @@ const sseClients = new Map<string, Set<Response>>();
 
 function pushStateToClients(sessionId: string, state: GameState): void {
   const clients = sseClients.get(sessionId);
-  if (!clients || clients.size === 0) return;
+  if (!clients || clients.size === 0) {
+    console.log(`[SSE] push skipped — no clients for session ${sessionId}`);
+    return;
+  }
+  console.log(`[SSE] pushing state to ${clients.size} client(s) for session ${sessionId} (turn=${state.turn}, log[-1]="${state.log.at(-1)}")`);
   const data = JSON.stringify(state);
   for (const client of clients) {
     client.write(`data: ${data}\n\n`);
@@ -62,11 +66,13 @@ app.get("/game/events/:sessionId", (req, res) => {
 
   if (!sseClients.has(sessionId)) sseClients.set(sessionId, new Set());
   sseClients.get(sessionId)!.add(res);
+  console.log(`[SSE] client connected — session ${sessionId} now has ${sseClients.get(sessionId)!.size} subscriber(s)`);
 
   req.on("close", () => {
     const clients = sseClients.get(sessionId);
     if (clients) {
       clients.delete(res);
+      console.log(`[SSE] client disconnected — session ${sessionId} now has ${clients.size} subscriber(s)`);
       if (clients.size === 0) sseClients.delete(sessionId);
     }
   });
@@ -92,9 +98,16 @@ app.post("/game/action", (req, res) => {
     // 新 Monster：仅激活，不触发推理
     if (result.agentName) {
       activateMonsterAgent(state, result.agentName);
+      console.log(`[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${state.agents.length} total), no think yet`);
     } else if (state.agents.length > 0) {
       // 非 Monster + 已有激活 agent → fire-and-forget think，完成后 SSE 推送
-      void triggerAgentThinking(state).then(() => pushStateToClients(sessionId, state));
+      console.log(`[Action] Non-monster reveal at (${action.x},${action.y}) — firing agent think for ${state.agents.length} agent(s) (turn=${state.turn})`);
+      void triggerAgentThinking(state).then(() => {
+        console.log(`[Action] Agent thinking done — log[-1]="${state.log.at(-1)}"`);
+        pushStateToClients(sessionId, state);
+      });
+    } else {
+      console.log(`[Action] Reveal at (${action.x},${action.y}) — no agents yet, no think`);
     }
 
     // 立即响应，不等待 AI 推理
