@@ -9,6 +9,7 @@ import * as path from "node:path";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import type { GameMap, GameState, MapSize, Tile } from "@roguelike/shared";
+import { GameAgent, thinkBatch } from "./ai/index.js";
 
 // ─── Glyphs & weights ─────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ function weightedRandom(): TileType {
   return TileType.Floor;
 }
 
-export function createMap(size: MapSize): GameMap {
+export function createRandomMap(size: MapSize): GameMap {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;
 
@@ -100,7 +101,7 @@ export function createInitialState(sessionId: string): GameState {
       level: 1,
       xp: 0,
     },
-    map: createMap(mapSize),
+    map: createRandomMap(mapSize),
     log: ["欢迎来到地牢！"],
     agents: [],
   };
@@ -118,6 +119,61 @@ export interface ApplyRevealResult {
   /** Monster 格子专用：对应 GameAgent 的 name，供调用方激活 agent */
   agentName?: string;
 }
+
+/**
+ * 固定布局的 4×4 开发地图，所有元素坐标确定，便于测试与调试。
+ *
+ * 布局（x 为列，y 为行）：
+ *
+ *      x=0        x=1       x=2        x=3
+ * y=0  入口 >     地板 ·    墙壁 #     地板 ·
+ * y=1  怪物 E     地板 ·    地板 ·     宝箱 $
+ * y=2  地板 ·     物品 !    墙壁 #     地板 ·
+ * y=3  地板 ·     地板 ·    地板 ·     特殊 ?
+ *
+ * 各元素唯一坐标：
+ *   Entrance  (0,0)
+ *   Monster   (0,1)  → agentName = "monster-0-1"
+ *   Treasure  (3,1)
+ *   Item      (1,2)
+ *   Special   (3,3)
+ *   Wall      (2,0), (2,2)
+ *   Floor     其余 9 格
+ */
+export function createDevMap(): GameMap {
+  const layout: TileType[][] = [
+    [TileType.Entrance, TileType.Floor,   TileType.Wall,    TileType.Floor  ],
+    [TileType.Monster,  TileType.Floor,   TileType.Floor,   TileType.Treasure],
+    [TileType.Floor,    TileType.Item,    TileType.Wall,    TileType.Floor  ],
+    [TileType.Floor,    TileType.Floor,   TileType.Floor,   TileType.Special ],
+  ];
+
+  return layout.map((row, y) =>
+    row.map((type, x) => {
+      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
+      if (type === TileType.Monster) {
+        tile.agentName = `monster-${x}-${y}`;
+      }
+      return tile;
+    })
+  );
+}
+
+export function createDevInitialState(sessionId: string): GameState {
+  const mapSize: MapSize = 4;
+  return {
+    sessionId,
+    turn: 0,
+    mapSize,
+    depth: 1,
+    player: { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 },
+    map: createDevMap(),
+    log: ["【开发模式】固定地图已加载。"],
+    agents: [],
+  };
+}
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
 
 /**
  * 对 state 执行 reveal 动作（直接 mutate）。
@@ -142,6 +198,42 @@ export function applyReveal(
   state.log = [...state.log, message].slice(-20);
 
   return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
+}
+
+// ─── applyRevealAndThink ──────────────────────────────────────────────────────
+
+/**
+ * applyReveal 的异步封装：揭开格子后自动激活对应 GameAgent，
+ * 并让本局所有已激活的 agent 并发思考一次。
+ * HTTP 路由和 CLI 均可直接调用此函数。
+ */
+export async function applyRevealAndThink(
+  state: GameState,
+  x: number,
+  y: number
+): Promise<ApplyRevealResult> {
+  const result = applyReveal(state, x, y);
+  if (!result.ok) return result;
+
+  // 新翻开 Monster 格子 → 创建并激活对应 GameAgent
+  if (result.agentName) {
+    const systemPrompt = `你是一只地牢怪物（${result.agentName}）。每个回合用一句话描述你的行动。`;
+    state.agents.push(new GameAgent(result.agentName, systemPrompt));
+  }
+
+  // 所有已激活的 agent 并发思考
+  if (state.agents.length > 0) {
+    const perceptions = state.agents.map(
+      () => `第 ${state.turn} 回合，玩家揭开了一个新格子。`
+    );
+    const actions = await thinkBatch(state.agents as GameAgent[], perceptions);
+    const entries = actions.filter((a) => a.length > 0);
+    if (entries.length > 0) {
+      state.log = [...state.log, ...entries].slice(-20);
+    }
+  }
+
+  return result;
 }
 
 // ─── JSON persistence ─────────────────────────────────────────────────────────

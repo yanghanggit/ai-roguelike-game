@@ -6,7 +6,7 @@ import { TileType } from "@roguelike/shared";
 import {
   GLYPHS,
   LOG_MESSAGES,
-  createMap,
+  createRandomMap,
   createInitialState,
   applyReveal,
   saveGameState,
@@ -39,36 +39,36 @@ describe("LOG_MESSAGES", () => {
 
 describe("createMap", () => {
   it("3×3 地图有正确的行列数", () => {
-    const map = createMap(3);
+    const map = createRandomMap(3);
     expect(map).toHaveLength(3);
     map.forEach((row) => expect(row).toHaveLength(3));
   });
 
   it("4×4 地图有正确的行列数", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     expect(map).toHaveLength(4);
     map.forEach((row) => expect(row).toHaveLength(4));
   });
 
   it("3×3 地图包含恰好 1 个 Entrance", () => {
-    const map = createMap(3);
+    const map = createRandomMap(3);
     const count = map.flat().filter((t) => t.type === TileType.Entrance).length;
     expect(count).toBe(1);
   });
 
   it("4×4 地图包含恰好 2 个 Entrance", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     const count = map.flat().filter((t) => t.type === TileType.Entrance).length;
     expect(count).toBe(2);
   });
 
   it("所有格子初始为未揭开（revealed=false）", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     map.flat().forEach((tile) => expect(tile.revealed).toBe(false));
   });
 
   it("每个格子的 glyph 与 type 一致", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     map.flat().forEach((tile) => {
       expect(tile.glyph).toBe(GLYPHS[tile.type]);
     });
@@ -76,7 +76,7 @@ describe("createMap", () => {
 
   it("所有 type 值都是合法的 TileType", () => {
     const validTypes = new Set(Object.values(TileType));
-    createMap(4)
+    createRandomMap(4)
       .flat()
       .forEach((tile) => expect(validTypes.has(tile.type)).toBe(true));
   });
@@ -85,7 +85,7 @@ describe("createMap", () => {
     // 多次采样确保命中 Monster 格子
     let found = false;
     for (let attempt = 0; attempt < 30 && !found; attempt++) {
-      const map = createMap(4);
+      const map = createRandomMap(4);
       for (let y = 0; y < 4; y++) {
         for (let x = 0; x < 4; x++) {
           const tile = map[y]![x]!;
@@ -101,7 +101,7 @@ describe("createMap", () => {
   it("非 Monster 格子的 agentName 为 undefined", () => {
     let hasNonMonster = false;
     for (let attempt = 0; attempt < 30 && !hasNonMonster; attempt++) {
-      const map = createMap(4);
+      const map = createRandomMap(4);
       for (const tile of map.flat()) {
         if (tile.type !== TileType.Monster) {
           expect(tile.agentName).toBeUndefined();

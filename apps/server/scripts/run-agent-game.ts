@@ -6,7 +6,8 @@
  *   pnpm tsx apps/server/scripts/run-agent-game.ts <command>
  *
  * 命令：
- *   start               创建新游戏，存入 saves/，打印初始地图
+ *   start               创建随机新游戏，存入 saves/，打印初始地图
+ *   start-dev           创建固定布局开发地图（元素位置确定，便于测试）
  *   status              读取最新存档，打印地图与玩家信息
  *   reveal <x> <y>      揭开指定坐标的格子，保存带时间戳的新存档
  */
@@ -16,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { createInitialState, applyReveal, saveGameState, loadLatestGameState, GLYPHS } from "../src/game.js";
+import { createInitialState, createDevInitialState, applyRevealAndThink, saveGameState, loadLatestGameState, GLYPHS } from "../src/game.js";
 import type { GameState } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -93,13 +94,29 @@ program
 
 program
   .command("start")
-  .description("创建新游戏，保存到 tmp/game-state.json")
+  .description("创建随机新游戏，保存存档到 saves/")
   .action(() => {
     const sessionId = crypto.randomUUID();
     const state = createInitialState(sessionId);
     const savedPath = saveGameState(state, SAVES_DIR);
 
     logger.info({ sessionId, savedPath }, "新游戏已创建");
+    printMap(state);
+    printPlayer(state);
+    printUnrevealed(state);
+  });
+
+// ─── start-dev ────────────────────────────────────────────────────────────────
+
+program
+  .command("start-dev")
+  .description("创建固定布局开发地图（元素位置确定，便于测试与调试）")
+  .action(() => {
+    const sessionId = crypto.randomUUID();
+    const state = createDevInitialState(sessionId);
+    const savedPath = saveGameState(state, SAVES_DIR);
+
+    logger.info({ sessionId, savedPath }, "【开发模式】固定地图已创建");
     printMap(state);
     printPlayer(state);
     printUnrevealed(state);
@@ -134,7 +151,7 @@ program
 program
   .command("reveal <x> <y>")
   .description("揭开坐标 (x, y) 的格子")
-  .action((xStr: string, yStr: string) => {
+  .action(async (xStr: string, yStr: string) => {
     const x = parseInt(xStr, 10);
     const y = parseInt(yStr, 10);
 
@@ -151,7 +168,7 @@ program
       process.exit(1);
     }
 
-    const result = applyReveal(state, x, y);
+    const result = await applyRevealAndThink(state, x, y);
     if (!result.ok) {
       logger.error({ x, y }, result.error);
       process.exit(1);
