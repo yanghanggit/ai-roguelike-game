@@ -73,9 +73,13 @@ export function createMap(size: MapSize): GameMap {
   for (let y = 0; y < size; y++) {
     const row: Tile[] = [];
     for (let x = 0; x < size; x++) {
-      const type = pool[y * size + x]!;
-      row.push({ type, glyph: GLYPHS[type], revealed: false });
-    }
+        const type = pool[y * size + x]!;
+        const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
+        if (type === TileType.Monster) {
+          tile.agentName = `monster-${x}-${y}`;
+        }
+        row.push(tile);
+      }
     map.push(row);
   }
   return map;
@@ -98,6 +102,7 @@ export function createInitialState(sessionId: string): GameState {
     },
     map: createMap(mapSize),
     log: ["欢迎来到地牢！"],
+    agents: [],
   };
 }
 
@@ -110,6 +115,8 @@ export interface ApplyRevealResult {
   tileType?: TileType;
   /** 本次追加的日志消息（ok 为 true 且格子未曾揭开时有值） */
   message?: string;
+  /** Monster 格子专用：对应 GameAgent 的 name，供调用方激活 agent */
+  agentName?: string;
 }
 
 /**
@@ -134,7 +141,7 @@ export function applyReveal(
   const message = LOG_MESSAGES[tile.type];
   state.log = [...state.log, message].slice(-20);
 
-  return { ok: true, tileType: tile.type, message };
+  return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
 }
 
 // ─── JSON persistence ─────────────────────────────────────────────────────────

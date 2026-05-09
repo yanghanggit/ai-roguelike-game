@@ -11,3 +11,4 @@ export {
   getBufferString,
 } from "./messages.js";
 export { DeepSeekClient, type DeepSeekClientOptions } from "./deepseek-client.js";
+export { GameAgent, think, thinkBatch } from "./game-agent.js";

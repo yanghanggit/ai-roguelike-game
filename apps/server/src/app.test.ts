@@ -1,7 +1,23 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app, sessions, createMap } from "./app.js";
 import type { GameState } from "@roguelike/shared";
+import { TileType } from "@roguelike/shared";
+
+// ─── DeepSeek fetch mock helper ───────────────────────────────────────────────
+
+function mockFetch(content: string) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content } }],
+        usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+      }),
+    })
+  );
+}
 
 describe("GET /health", () => {
   it("returns 200 with status ok", async () => {
@@ -52,8 +68,13 @@ describe("POST /game/action — reveal", () => {
 
   beforeEach(async () => {
     sessions.clear();
+    vi.unstubAllGlobals();
     const res = await request(app).post("/game/start");
     sessionId = res.body.state.sessionId;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("reveals a hidden tile and increments turn", async () => {
@@ -113,5 +134,70 @@ describe("createMap", () => {
   it("all tiles start unrevealed", () => {
     const map = createMap(4);
     expect(map.flat().every((t) => !t.revealed)).toBe(true);
+  });
+});
+
+// ─── POST /game/action — Monster 激活 GameAgent ───────────────────────────────
+
+describe("POST /game/action — Monster 激活 GameAgent", () => {
+  let sessionId: string;
+
+  beforeEach(async () => {
+    sessions.clear();
+    vi.unstubAllGlobals();
+    process.env["DEEPSEEK_API_KEY"] = "test-key";
+    const res = await request(app).post("/game/start");
+    sessionId = res.body.state.sessionId;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env["DEEPSEEK_API_KEY"];
+  });
+
+  it("reveal Monster 格子后，state.agents 新增一个条目", async () => {
+    mockFetch("我向玩家移动。");
+
+    // 强制 (0,0) 为 Monster
+    const state = sessions.get(sessionId)!;
+    state.map[0]![0]!.type = TileType.Monster;
+    state.map[0]![0]!.agentName = "monster-0-0";
+
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+
+    expect(res.status).toBe(200);
+    const returned: GameState = res.body.state;
+    expect(returned.agents).toHaveLength(1);
+    expect(returned.agents[0]!.name).toBe("monster-0-0");
+  });
+
+  it("reveal Monster 后，AI 行动字符串出现在 state.log 末尾", async () => {
+    mockFetch("我决定攻击玩家！");
+
+    const state = sessions.get(sessionId)!;
+    state.map[0]![0]!.type = TileType.Monster;
+    state.map[0]![0]!.agentName = "monster-0-0";
+
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+
+    const returned: GameState = res.body.state;
+    expect(returned.log[returned.log.length - 1]).toBe("我决定攻击玩家！");
+  });
+
+  it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {
+    const state = sessions.get(sessionId)!;
+    state.map[0]![0]!.type = TileType.Floor;
+    delete (state.map[0]![0]! as { agentName?: string }).agentName;
+
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.state.agents).toHaveLength(0);
   });
 });

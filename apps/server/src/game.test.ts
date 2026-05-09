@@ -80,6 +80,36 @@ describe("createMap", () => {
       .flat()
       .forEach((tile) => expect(validTypes.has(tile.type)).toBe(true));
   });
+
+  it("Monster 格子具有 agentName，格式为 monster-x-y", () => {
+    // 多次采样确保命中 Monster 格子
+    let found = false;
+    for (let attempt = 0; attempt < 30 && !found; attempt++) {
+      const map = createMap(4);
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          const tile = map[y]![x]!;
+          if (tile.type === TileType.Monster) {
+            expect(tile.agentName).toBe(`monster-${x}-${y}`);
+            found = true;
+          }
+        }
+      }
+    }
+  });
+
+  it("非 Monster 格子的 agentName 为 undefined", () => {
+    let hasNonMonster = false;
+    for (let attempt = 0; attempt < 30 && !hasNonMonster; attempt++) {
+      const map = createMap(4);
+      for (const tile of map.flat()) {
+        if (tile.type !== TileType.Monster) {
+          expect(tile.agentName).toBeUndefined();
+          hasNonMonster = true;
+        }
+      }
+    }
+  });
 });
 
 // ─── createInitialState ───────────────────────────────────────────────────────
@@ -198,6 +228,24 @@ describe("applyReveal", () => {
     const result = applyReveal(state, 0, 0);
     const tileType = state.map[0]![0]!.type;
     expect(result.message).toBe(LOG_MESSAGES[tileType]);
+  });
+
+  it("揭开 Monster 格子时，返回値包含 agentName", () => {
+    // 强制将 (0,0) 设为 Monster 格子后揭开
+    state.map[0]![0]!.type = TileType.Monster;
+    (state.map[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
+    state.map[0]![0]!.glyph = GLYPHS[TileType.Monster];
+    const result = applyReveal(state, 0, 0);
+    expect(result.agentName).toBe("monster-0-0");
+  });
+
+  it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
+    // 强制将 (0,0) 设为 Floor 并清除 agentName
+    state.map[0]![0]!.type = TileType.Floor;
+    state.map[0]![0]!.glyph = GLYPHS[TileType.Floor];
+    delete (state.map[0]![0]! as { agentName?: string }).agentName;
+    const result = applyReveal(state, 0, 0);
+    expect(result.agentName).toBeUndefined();
   });
 });
 
