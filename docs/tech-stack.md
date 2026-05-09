@@ -2,27 +2,27 @@
 
 ## Monorepo
 
-| Tool | Role |
-| ------ | ------ |
-| pnpm workspaces | Package management |
-| Turborepo | Build orchestration & task caching |
-| TypeScript | Unified language across all packages |
+| Tool            | Role                                 |
+| --------------- | ------------------------------------ |
+| pnpm workspaces | Package management                   |
+| Turborepo       | Build orchestration & task caching   |
+| TypeScript      | Unified language across all packages |
 
 ## Client (`apps/client`)
 
-| Tool | Role |
-| ------ | ------ |
-| Vite | Dev server & bundler |
-| React 18 | UI framework |
-| CSS Grid | 2D map rendering (no game engine) |
+| Tool      | Role                                      |
+| --------- | ----------------------------------------- |
+| Vite      | Dev server & bundler                      |
+| React 18  | UI framework                              |
+| CSS Grid  | 2D map rendering (no game engine)         |
 | fetch API | HTTP communication (native, no extra lib) |
 
 ## Server (`apps/server`)
 
-| Tool | Role |
-| ------ | ------ |
-| Express | REST API framework |
-| tsx | TypeScript hot-reload in dev |
+| Tool                                  | Role                             |
+| ------------------------------------- | -------------------------------- |
+| Express                               | REST API framework               |
+| tsx                                   | TypeScript hot-reload in dev     |
 | In-memory `Map<sessionId, GameState>` | Game state store (no DB for now) |
 
 ## Shared (`packages/shared`)
@@ -39,8 +39,8 @@
 
 ## Deferred
 
-| Item | Decision |
-| ------ | ---------- |
-| Database | PostgreSQL via Prisma (future) |
-| Auth | Not designed yet |
-| AI integration | Not designed yet |
+| Item           | Decision                       |
+| -------------- | ------------------------------ |
+| Database       | PostgreSQL via Prisma (future) |
+| Auth           | Not designed yet               |
+| AI integration | Not designed yet               |

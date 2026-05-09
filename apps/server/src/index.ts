@@ -33,7 +33,7 @@ function createStarterMap(): GameMap {
       row.push(
         isWall
           ? { type: "wall", glyph: "#", passable: false }
-          : { type: "floor", glyph: ".", passable: true }
+          : { type: "floor", glyph: ".", passable: true },
       );
     }
     map.push(row);

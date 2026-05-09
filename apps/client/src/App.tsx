@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type {
-  GameState,
-  StartGameResponse,
-  ActionResponse,
-  Direction,
-} from "@roguelike/shared";
+import type { GameState, StartGameResponse, ActionResponse, Direction } from "@roguelike/shared";
 
 const GLYPH_CLASS: Record<string, string> = {
   "@": "tile-player",
@@ -18,11 +13,8 @@ function GameMap({ state }: { state: GameState }) {
 
   const cells = state.map.flatMap((row, y) =>
     row.map((tile, x) => {
-      const isPlayer =
-        state.player.position.x === x && state.player.position.y === y;
-      const monster = state.monsters.find(
-        (m) => m.position.x === x && m.position.y === y
-      );
+      const isPlayer = state.player.position.x === x && state.player.position.y === y;
+      const monster = state.monsters.find((m) => m.position.x === x && m.position.y === y);
       const glyph = isPlayer ? "@" : monster ? monster.glyph : tile.glyph;
       const cls = GLYPH_CLASS[glyph] ?? "tile-floor";
       return (
@@ -30,7 +22,7 @@ function GameMap({ state }: { state: GameState }) {
           {glyph}
         </div>
       );
-    })
+    }),
   );
 
   return (
@@ -43,7 +35,9 @@ function GameMap({ state }: { state: GameState }) {
 function StatusBar({ state }: { state: GameState }) {
   return (
     <div className="status-bar">
-      <span>HP: {state.player.hp}/{state.player.maxHp}</span>
+      <span>
+        HP: {state.player.hp}/{state.player.maxHp}
+      </span>
       <span>Level: {state.player.level}</span>
       <span>Turn: {state.turn}</span>
     </div>
@@ -54,7 +48,9 @@ function MessageLog({ log }: { log: string[] }) {
   return (
     <div className="message-log">
       {log.map((msg, i) => (
-        <div key={i} className="log-entry">{msg}</div>
+        <div key={i} className="log-entry">
+          {msg}
+        </div>
       ))}
     </div>
   );
@@ -99,7 +95,7 @@ export default function App() {
         setError(String(e));
       }
     },
-    [state]
+    [state],
   );
 
   useEffect(() => {
@@ -142,9 +138,7 @@ export default function App() {
       <StatusBar state={state} />
       <GameMap state={state} />
       <MessageLog log={state.log} />
-      <div className="controls-hint">
-        Move: Arrow keys or WASD
-      </div>
+      <div className="controls-hint">Move: Arrow keys or WASD</div>
     </div>
   );
 }

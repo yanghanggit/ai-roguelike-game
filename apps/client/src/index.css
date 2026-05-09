@@ -93,10 +93,22 @@ body {
   user-select: none;
 }
 
-.tile-floor  { color: #444; background: #0e0e0e; }
-.tile-wall   { color: #888; background: #1a1a1a; }
-.tile-player { color: #f0c060; background: #0e0e0e; }
-.tile-monster{ color: #e05050; background: #0e0e0e; }
+.tile-floor {
+  color: #444;
+  background: #0e0e0e;
+}
+.tile-wall {
+  color: #888;
+  background: #1a1a1a;
+}
+.tile-player {
+  color: #f0c060;
+  background: #0e0e0e;
+}
+.tile-monster {
+  color: #e05050;
+  background: #0e0e0e;
+}
 
 /* ─── Message log ──────────────────────────────────────── */
 
