@@ -17,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { createInitialState, createDevInitialState, applyRevealAndThink, saveGameState, loadLatestGameState, GLYPHS } from "../src/game.js";
+import { createInitialState, createDevInitialState, applyReveal, activateMonsterAgent, triggerAgentThinking, saveGameState, loadLatestGameState, GLYPHS } from "../src/game.js";
 import type { GameState } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -168,10 +168,20 @@ program
       process.exit(1);
     }
 
-    const result = await applyRevealAndThink(state, x, y);
+    const result = applyReveal(state, x, y);
     if (!result.ok) {
       logger.error({ x, y }, result.error);
       process.exit(1);
+    }
+
+    // 新 Monster：激活 agent（不触发推理）
+    if (result.agentName) {
+      activateMonsterAgent(state, result.agentName);
+    }
+
+    // CLI：阻塞等待 AI 推理（非 Monster reveal + 已有激活 agent）
+    if (!result.agentName && state.agents.length > 0) {
+      await triggerAgentThinking(state);
     }
 
     const savedPath = saveGameState(state, SAVES_DIR);

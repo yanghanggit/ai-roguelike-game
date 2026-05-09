@@ -200,40 +200,32 @@ export function applyReveal(
   return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
 }
 
-// ─── applyRevealAndThink ──────────────────────────────────────────────────────
+// ─── Agent helpers ────────────────────────────────────────────────────────────
 
 /**
- * applyReveal 的异步封装：揭开格子后自动激活对应 GameAgent，
- * 并让本局所有已激活的 agent 并发思考一次。
- * HTTP 路由和 CLI 均可直接调用此函数。
+ * 将新发现的 Monster 格子对应的 GameAgent 激活，加入 state.agents 队列。
+ * 仅激活，不触发推理（怪物尚未察觉到玩家）。
  */
-export async function applyRevealAndThink(
-  state: GameState,
-  x: number,
-  y: number
-): Promise<ApplyRevealResult> {
-  const result = applyReveal(state, x, y);
-  if (!result.ok) return result;
+export function activateMonsterAgent(state: GameState, agentName: string): void {
+  const systemPrompt = `你是一只地牢怪物（${agentName}）。每个回合用一句话描述你的行动。`;
+  state.agents.push(new GameAgent(agentName, systemPrompt));
+}
 
-  // 新翻开 Monster 格子 → 创建并激活对应 GameAgent
-  if (result.agentName) {
-    const systemPrompt = `你是一只地牢怪物（${result.agentName}）。每个回合用一句话描述你的行动。`;
-    state.agents.push(new GameAgent(result.agentName, systemPrompt));
+/**
+ * 让 state.agents 中所有已激活的 agent 并发推理一轮，结果追加到 state.log。
+ * 并发写入无锁（方案 A：接受并发，slice(-20) 保证不爆）。
+ * HTTP 层以 fire-and-forget（void）方式调用；CLI 层 await 阻塞等待。
+ */
+export async function triggerAgentThinking(state: GameState): Promise<void> {
+  if (state.agents.length === 0) return;
+  const perceptions = state.agents.map(
+    () => `第 ${state.turn} 回合，玩家揭开了一个新格子。`
+  );
+  const actions = await thinkBatch(state.agents as GameAgent[], perceptions);
+  const entries = actions.filter((a) => a.length > 0);
+  if (entries.length > 0) {
+    state.log = [...state.log, ...entries].slice(-20);
   }
-
-  // 所有已激活的 agent 并发思考
-  if (state.agents.length > 0) {
-    const perceptions = state.agents.map(
-      () => `第 ${state.turn} 回合，玩家揭开了一个新格子。`
-    );
-    const actions = await thinkBatch(state.agents as GameAgent[], perceptions);
-    const entries = actions.filter((a) => a.length > 0);
-    if (entries.length > 0) {
-      state.log = [...state.log, ...entries].slice(-20);
-    }
-  }
-
-  return result;
 }
 
 // ─── JSON persistence ─────────────────────────────────────────────────────────

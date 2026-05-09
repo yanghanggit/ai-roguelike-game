@@ -173,7 +173,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     expect(returned.agents[0]!.name).toBe("monster-0-0");
   });
 
-  it("reveal Monster 后，AI 行动字符串出现在 state.log 末尾", async () => {
+  it("reveal Monster 时仅激活，不立即 think（log 末尾不含 AI 行动）", async () => {
     mockFetch("我决定攻击玩家！");
 
     const state = sessions.get(sessionId)!;
@@ -185,7 +185,37 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     const returned: GameState = res.body.state;
-    expect(returned.log[returned.log.length - 1]).toBe("我决定攻击玩家！");
+    // agents 已激活
+    expect(returned.agents).toHaveLength(1);
+    // 但 AI 行动尚未出现（log 末尾应为 Monster 的系统消息，而非 AI 台词）
+    expect(returned.log[returned.log.length - 1]).not.toBe("我决定攻击玩家！");
+  });
+
+  it("Monster 激活后再次 reveal，HTTP 立即响应（非阶塞验证）", async () => {
+    mockFetch("我决定攻击玩家！");
+
+    const state = sessions.get(sessionId)!;
+    // (0,0) 设为 Monster，(1,0) 设为 Floor
+    state.map[0]![0]!.type = TileType.Monster;
+    state.map[0]![0]!.agentName = "monster-0-0";
+    state.map[0]![1]!.type = TileType.Floor;
+    delete (state.map[0]![1]! as { agentName?: string }).agentName;
+
+    // 第一次 reveal Monster → 仅激活
+    await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+
+    // 第二次 reveal Floor → 后台 think，HTTP 立即返回
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 1, y: 0 } });
+
+    // HTTP 响应在 AI 推理完成前发出，响应体不含 AI 内容
+    expect(res.status).toBe(200);
+    expect(res.body.state.turn).toBe(2);
+    expect(res.body.state.agents).toHaveLength(1);
+    expect(res.body.state.log[res.body.state.log.length - 1]).not.toBe("我决定攻击玩家！");
   });
 
   it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {
@@ -199,5 +229,16 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.state.agents).toHaveLength(0);
+  });
+});
+
+// ─── GET /game/events — SSE 端点 ───────────────────────────────────────────────────
+
+describe("GET /game/events", () => {
+  beforeEach(() => sessions.clear());
+
+  it("未知 sessionId 返回 404", async () => {
+    const res = await request(app).get("/game/events/nonexistent-session-id");
+    expect(res.status).toBe(404);
   });
 });

@@ -126,6 +126,18 @@ export default function App() {
     [state],
   );
 
+  // SSE：当 sessionId 变化时（新游戏）订阅服务端推送，实时接收 AI 推理后的状态更新
+  useEffect(() => {
+    if (!state?.sessionId) return;
+    const es = new EventSource(`/game/events/${state.sessionId}`);
+    es.onmessage = (event) => {
+      setState(JSON.parse(event.data as string) as GameState);
+    };
+    return () => {
+      es.close();
+    };
+  }, [state?.sessionId]);
+
   if (!state) {
     return (
       <div className="start-screen">

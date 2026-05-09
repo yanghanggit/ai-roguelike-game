@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import {
@@ -9,6 +9,8 @@ import {
   createRandomMap,
   createInitialState,
   applyReveal,
+  activateMonsterAgent,
+  triggerAgentThinking,
   saveGameState,
   loadGameState,
   loadLatestGameState,
@@ -312,5 +314,118 @@ describe("JSON persistence", () => {
     saveGameState(state, tmpDir);
     const files = fse.readdirSync(tmpDir);
     expect(files.length).toBe(2);
+  });
+});
+
+// ─── activateMonsterAgent ────────────────────────────────────────────────────────────────
+
+describe("activateMonsterAgent", () => {
+  it("将指定 agentName 的 GameAgent 加入 state.agents", () => {
+    const state = createInitialState("s");
+    activateMonsterAgent(state, "monster-1-2");
+    expect(state.agents).toHaveLength(1);
+    expect(state.agents[0]!.name).toBe("monster-1-2");
+  });
+
+  it("重复调用两次则添加两个 agent", () => {
+    const state = createInitialState("s");
+    activateMonsterAgent(state, "monster-0-0");
+    activateMonsterAgent(state, "monster-3-3");
+    expect(state.agents).toHaveLength(2);
+    expect(state.agents[1]!.name).toBe("monster-3-3");
+  });
+
+  it("初始 state 的 agents 为空数组", () => {
+    const state = createInitialState("s");
+    expect(state.agents).toHaveLength(0);
+  });
+});
+
+// ─── triggerAgentThinking ───────────────────────────────────────────────────────────────
+
+describe("triggerAgentThinking", () => {
+  beforeEach(() => {
+    process.env["DEEPSEEK_API_KEY"] = "test-key";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env["DEEPSEEK_API_KEY"];
+  });
+
+  it("agents 为空时什么都不做，log 不变", async () => {
+    const state = createInitialState("s");
+    const logBefore = [...state.log];
+    await triggerAgentThinking(state);
+    expect(state.log).toEqual(logBefore);
+  });
+
+  it("AI 行动内容被追加到 state.log", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "怪物发动攻击！" } }],
+          usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+        }),
+      }),
+    );
+
+    const state = createInitialState("s");
+    // 先揭开一个格子使 turn > 0，再激活怪物
+    state.map[0]![0]!.type = TileType.Monster;
+    (state.map[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
+    state.map[0]![0]!.glyph = GLYPHS[TileType.Monster];
+    applyReveal(state, 0, 0);
+    activateMonsterAgent(state, "monster-0-0");
+
+    await triggerAgentThinking(state);
+    expect(state.log[state.log.length - 1]).toBe("怪物发动攻击！");
+  });
+
+  it("多个 agent 的 AI 行动全部追加到 log", async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => {
+        callCount++;
+        const content = callCount === 1 ? "怪物A攻击！" : "怪物B防御！";
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [{ message: { content } }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+          }),
+        };
+      }),
+    );
+
+    const state = createInitialState("s");
+    activateMonsterAgent(state, "monster-0-0");
+    activateMonsterAgent(state, "monster-1-1");
+    await triggerAgentThinking(state);
+    expect(state.log).toContain("怪物A攻击！");
+    expect(state.log).toContain("怪物B防御！");
+  });
+
+  it("log 最多保留 20 条条目", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "AI 行动" } }],
+          usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+        }),
+      }),
+    );
+
+    const state = createInitialState("s");
+    // 将 log 充居到 19 条
+    state.log = Array.from({ length: 19 }, (_, i) => `旧日志 ${i}`);
+    activateMonsterAgent(state, "monster-0-0");
+    await triggerAgentThinking(state);
+    expect(state.log.length).toBeLessThanOrEqual(20);
   });
 });
