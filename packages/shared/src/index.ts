@@ -48,13 +48,11 @@ export interface AgentMessage {
   readonly additionalKwargs: Record<string, unknown>;
 }
 
-/** 怪物 Agent 快照：名称 + 完整对话上下文 + 激活状态 */
+/** 怪物 Agent 快照：名称 + 完整对话上下文 */
 export interface GameAgent {
   readonly name: string;
   readonly displayName: string;
   readonly context: AgentMessage[];
-  /** 是否已被玩家揭开（揭开前不参与推理）*/
-  activated: boolean;
 }
 
 // ─── Turn phase ──────────────────────────────────────────────────────────────
@@ -74,8 +72,10 @@ export interface GameState {
   player: Player;
   map: GameMap;
   log: string[];
-  /** 本局已激活（已翻开）的 Agent，含完整对话上下文，key = agentName */
+  /** 本局已创建的 Agent，含完整对话上下文，key = agentName */
   agents: Record<string, GameAgent>;
+  /** key = agentName；value = 该 Agent 被玩家揭开时的 state.turn（揭开当回合 dungeon 阶段不行动） */
+  activatedTurns: Record<string, number>;
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────

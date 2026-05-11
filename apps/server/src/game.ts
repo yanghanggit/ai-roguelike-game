@@ -102,6 +102,7 @@ export function createInitialState(sessionId: string): GameState {
     map,
     log: ["欢迎来到地牢！"],
     agents: buildAgentsFromMap(map),
+    activatedTurns: {},
   };
 }
 
@@ -170,6 +171,7 @@ export function createDevInitialState(sessionId: string): GameState {
     map,
     log: ["【开发模式】固定地图已加载。"],
     agents: buildAgentsFromMap(map),
+    activatedTurns: {},
   };
 }
 
@@ -190,7 +192,11 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
 
   tile.revealed = true;
   state.turn += 1;
-  const message = LOG_MESSAGES[tile.type];
+  let message = LOG_MESSAGES[tile.type];
+  if (tile.type === TileType.Monster && tile.agentName) {
+    const agent = state.agents[tile.agentName];
+    if (agent) message = `${message}==>【${agent.displayName}】`;
+  }
   state.log = [...state.log, message].slice(-20);
 
   return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
@@ -232,7 +238,7 @@ export function activateAgent(state: GameState, agentName: string): void {
     console.warn(`[activateMonsterAgent] agent "${agentName}" not found in state.agents`);
     return;
   }
-  agent.activated = true;
+  state.activatedTurns[agentName] = state.turn;
 }
 
 /**
@@ -241,7 +247,10 @@ export function activateAgent(state: GameState, agentName: string): void {
  * HTTP 层以 fire-and-forget（void）方式调用；CLI 层 await 阻塞等待。
  */
 export async function triggerAgentThinking(state: GameState): Promise<void> {
-  const agentList = (Object.values(state.agents) as GameAgent[]).filter((a) => a.activated);
+  const agentList = Object.keys(state.activatedTurns)
+    .filter((name) => state.activatedTurns[name]! < state.turn)
+    .map((name) => state.agents[name])
+    .filter((a): a is GameAgent => a !== undefined);
   if (agentList.length === 0) return;
   const perceptions = agentList.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   const actions = await thinkBatch(agentList, perceptions);

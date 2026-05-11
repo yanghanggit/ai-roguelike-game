@@ -205,8 +205,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     expect(res.status).toBe(200);
     const returned: GameState = res.body.state;
     expect(returned.agents["monster-0-0"]).toBeDefined();
-    expect(returned.agents["monster-0-0"]!.activated).toBe(true);
-    // 怪物揭开も新タイルなので dungeon phase に遷移する
+    expect(returned.activatedTurns["monster-0-0"]).toBe(1);
+    // 怪物揭开也新タイルなので dungeon phase に遷移する
     expect(returned.phase).toBe("dungeon");
   });
 
@@ -223,8 +223,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     const returned: GameState = res.body.state;
-    // agent は激活済み、phase は dungeon
-    expect(returned.agents["monster-0-0"]!.activated).toBe(true);
+    // agent は activatedTurns に登録済み、phase は dungeon
+    expect(returned.activatedTurns["monster-0-0"]).toBeDefined();
     expect(returned.phase).toBe("dungeon");
     // dungeon-advance を呼んでいないので AI 台詞はまだ現れない
     expect(returned.log[returned.log.length - 1]).not.toBe("我决定攻击玩家！");
@@ -234,16 +234,12 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     mockFetch("我决定攻击玩家！");
 
     const state = sessions.get(sessionId)!;
-    state.map[0]![0]!.type = TileType.Monster;
-    state.map[0]![0]!.agentName = "monster-0-0";
     state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
+    // 手动预设：monster 在上一回合（turn=0）被发现，当前 turn=1 → 0 < 1 → 可以行动
+    state.activatedTurns["monster-0-0"] = 0;
+    state.turn = 1;
+    state.phase = "dungeon";
 
-    // Monster reveal → phase dungeon, agent activated
-    await request(app)
-      .post("/game/player-action")
-      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
-
-    // dungeon-advance → AI thinks, phase → player
     const res = await request(app).post("/game/dungeon-advance").send({ sessionId });
 
     expect(res.status).toBe(200);
@@ -261,11 +257,10 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     expect(res.status).toBe(200);
-    // agents 中少有地图测试设置的怪物，但未激活
-    const activated = Object.values(res.body.state.agents as GameState["agents"]).filter(
-      (a) => a.activated,
+    // activatedTurns 中没有激活的怪物
+    expect(Object.keys(res.body.state.activatedTurns as GameState["activatedTurns"]).length).toBe(
+      0,
     );
-    expect(activated).toHaveLength(0);
   });
 });
 

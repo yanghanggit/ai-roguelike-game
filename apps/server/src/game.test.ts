@@ -232,10 +232,10 @@ describe("applyReveal", () => {
     expect(state.log.length).toBeLessThanOrEqual(20);
   });
 
-  it("揭开的 message 与该格子类型的 LOG_MESSAGES 一致", () => {
+  it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
     const result = applyReveal(state, 0, 0);
     const tileType = state.map[0]![0]!.type;
-    expect(result.message).toBe(LOG_MESSAGES[tileType]);
+    expect(result.message).toContain(LOG_MESSAGES[tileType]);
   });
 
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
@@ -326,12 +326,12 @@ describe("JSON persistence", () => {
 // ─── activateMonsterAgent ────────────────────────────────────────────────────────────────
 
 describe("activateMonsterAgent", () => {
-  it("将指定 agentName 的 GameAgent 设为 activated", () => {
+  it("将指定 agentName 的 GameAgent 设为 激活", () => {
     const state = createDevInitialState("s");
     // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
-    expect(state.agents["monster-0-1"]!.activated).toBe(false);
+    expect(state.activatedTurns["monster-0-1"]).toBeUndefined();
     activateAgent(state, "monster-0-1");
-    expect(state.agents["monster-0-1"]!.activated).toBe(true);
+    expect(state.activatedTurns["monster-0-1"]).toBeDefined();
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
@@ -340,14 +340,14 @@ describe("activateMonsterAgent", () => {
     activateAgent(state, "monster-0-1");
     activateAgent(state, "monster-0-1");
     expect(Object.keys(state.agents).length).toBe(countBefore);
-    expect(state.agents["monster-0-1"]!.activated).toBe(true);
+    expect(state.activatedTurns["monster-0-1"]).toBeDefined();
   });
 
   it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
     const state = createDevInitialState("s");
     // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
-    expect(state.agents["monster-0-1"]!.activated).toBe(false);
+    expect(Object.keys(state.activatedTurns)).toHaveLength(0);
   });
 });
 
@@ -392,6 +392,8 @@ describe("triggerAgentThinking", () => {
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
     activateAgent(state, "monster-0-1");
+    // turn=1 时被激活，需 turn=2 才能行动
+    state.turn = 2;
 
     await triggerAgentThinking(state);
     expect(state.log[state.log.length - 1]).toBe("骷髅战士：怪物发动攻击！");
@@ -424,7 +426,9 @@ describe("triggerAgentThinking", () => {
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
     state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物", "测试系统提示");
-    state.agents["monster-1-1"]!.activated = true;
+    state.activatedTurns["monster-1-1"] = 0;
+    // 两者均在 turn=0 时被激活，需 turn 消进到 1 才能行动
+    state.turn = 1;
     await triggerAgentThinking(state);
     expect(state.log).toContain("骷髅战士：怪物A攻击！");
     expect(state.log).toContain("测试怪物：怪物B防御！");
@@ -451,6 +455,8 @@ describe("triggerAgentThinking", () => {
     // 将 log 充居到 19 条
     state.log = Array.from({ length: 19 }, (_, i) => `旧日志 ${i}`);
     activateAgent(state, "monster-0-1");
+    // turn=0 被激活，需 turn=1 才能行动
+    state.turn = 1;
     await triggerAgentThinking(state);
     expect(state.log.length).toBeLessThanOrEqual(20);
   });
