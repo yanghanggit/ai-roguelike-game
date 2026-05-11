@@ -122,10 +122,11 @@ describe("createInitialState", () => {
     expect(state.sessionId).toBe("abc-123");
   });
 
-  it("初始 turn=0、depth=1", () => {
+  it("初始 turn=0、depth=1、phase=player", () => {
     const state = createInitialState("s1");
     expect(state.turn).toBe(0);
     expect(state.depth).toBe(1);
+    expect(state.phase).toBe("player");
   });
 
   it("mapSize 为 4", () => {

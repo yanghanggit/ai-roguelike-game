@@ -10,6 +10,7 @@ function TopBar({ state, onSettings }: { state: GameState; onSettings: () => voi
       <span>
         HP: {hp}/{maxHp} · ATK: {attack} · DEF: {defense}
       </span>
+      {state.phase === "dungeon" && <span className="phase-indicator">地下城行动中…</span>}
       <button className="settings-btn" onClick={onSettings}>
         设置
       </button>
@@ -47,13 +48,21 @@ function GameMap({
   state: GameState;
   onReveal: (x: number, y: number) => void;
 }) {
+  const locked = state.phase === "dungeon";
   return (
-    <div className="game-map" style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}>
+    <div
+      className={`game-map${locked ? " map-locked" : ""}`}
+      style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}
+    >
       {state.map.flatMap((row, y) =>
         row.map((tile, x) => {
           if (!tile.revealed) {
             return (
-              <div key={`${x}-${y}`} className="tile tile-hidden" onClick={() => onReveal(x, y)} />
+              <div
+                key={`${x}-${y}`}
+                className="tile tile-hidden"
+                onClick={locked ? undefined : () => onReveal(x, y)}
+              />
             );
           }
           return (

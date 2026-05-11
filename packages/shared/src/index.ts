@@ -54,11 +54,18 @@ export interface GameAgent {
   readonly context: AgentMessage[];
 }
 
+// ─── Turn phase ──────────────────────────────────────────────────────────────
+
+/** 当前回合所属阵营。"player" 时玩家可操作；"dungeon" 时地下城整体行动（含怪物、机关、环境等所有非玩家元素）。 */
+export type TurnPhase = "player" | "dungeon";
+
 // ─── Game State ──────────────────────────────────────────────────────────────
 
 export interface GameState {
   sessionId: string;
   turn: number;
+  /** 当前回合阶段：玩家操作阶段 or 敌人行动阶段 */
+  phase: TurnPhase;
   mapSize: MapSize;
   depth: number;
   player: Player;

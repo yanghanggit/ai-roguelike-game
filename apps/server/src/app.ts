@@ -6,7 +6,7 @@ import type {
   ActionRequest,
   ActionResponse,
 } from "@roguelike/shared";
-import type { Response } from "express";
+import { pushStateToClients, registerSseRoute } from "./sse.js";
 import {
   createRandomMap,
   createInitialState,
@@ -26,25 +26,6 @@ app.use(express.json());
 
 export const sessions = new Map<string, GameState>();
 
-// ─── SSE client registry ─────────────────────────────────────────────────────
-
-const sseClients = new Map<string, Set<Response>>();
-
-function pushStateToClients(sessionId: string, state: GameState): void {
-  const clients = sseClients.get(sessionId);
-  if (!clients || clients.size === 0) {
-    console.log(`[SSE] push skipped — no clients for session ${sessionId}`);
-    return;
-  }
-  console.log(
-    `[SSE] pushing state to ${clients.size} client(s) for session ${sessionId} (turn=${state.turn}, log[-1]="${state.log.at(-1)}")`,
-  );
-  const data = JSON.stringify(state);
-  for (const client of clients) {
-    client.write(`data: ${data}\n\n`);
-  }
-}
-
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 app.get("/health", (_req, res) => {
@@ -60,35 +41,7 @@ app.post("/game/start", (_req, res) => {
   res.json(response);
 });
 
-app.get("/game/events/:sessionId", (req, res) => {
-  const { sessionId } = req.params as { sessionId: string };
-  if (!sessions.has(sessionId)) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
-
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-
-  if (!sseClients.has(sessionId)) sseClients.set(sessionId, new Set());
-  sseClients.get(sessionId)!.add(res);
-  console.log(
-    `[SSE] client connected — session ${sessionId} now has ${sseClients.get(sessionId)!.size} subscriber(s)`,
-  );
-
-  req.on("close", () => {
-    const clients = sseClients.get(sessionId);
-    if (clients) {
-      clients.delete(res);
-      console.log(
-        `[SSE] client disconnected — session ${sessionId} now has ${clients.size} subscriber(s)`,
-      );
-      if (clients.size === 0) sseClients.delete(sessionId);
-    }
-  });
-});
+registerSseRoute(app, sessions);
 
 app.post("/game/action", (req, res) => {
   const body = req.body as ActionRequest;
@@ -101,29 +54,39 @@ app.post("/game/action", (req, res) => {
   }
 
   if (action.type === "reveal") {
+    if (state.phase !== "player") {
+      res.status(409).json({ error: "敌人行动中，请等待" });
+      return;
+    }
+
     const result = applyReveal(state, action.x, action.y);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;
     }
 
-    // 新 Monster：仅激活，不触发推理
     if (result.agentName) {
+      // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
       activateMonsterAgent(state, result.agentName);
       console.log(
-        `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${state.agents.length} total), no think yet`,
+        `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${state.agents.length} total), phase stays "player"`,
       );
-    } else if (state.agents.length > 0) {
-      // 非 Monster + 已有激活 agent → fire-and-forget think，完成后 SSE 推送
+    } else if (result.message) {
+      // 非怪物格且是新格子：进入 dungeon phase，触发所有已激活 agent 思考
+      state.phase = "dungeon";
       console.log(
-        `[Action] Non-monster reveal at (${action.x},${action.y}) — firing agent think for ${state.agents.length} agent(s) (turn=${state.turn})`,
+        `[Action] Non-monster reveal at (${action.x},${action.y}) — phase → "dungeon", firing think for ${state.agents.length} agent(s) (turn=${state.turn})`,
       );
       void triggerAgentThinking(state).then(() => {
-        console.log(`[Action] Agent thinking done — log[-1]="${state.log.at(-1)}"`);
+        state.phase = "player";
+        console.log(`[Action] Dungeon turn done — phase → "player", log[-1]="${state.log.at(-1)}"`);
         pushStateToClients(sessionId, state);
       });
     } else {
-      console.log(`[Action] Reveal at (${action.x},${action.y}) — no agents yet, no think`);
+      // 格子已揭开：不改 phase
+      console.log(
+        `[Action] Reveal at (${action.x},${action.y}) — already revealed, no phase change`,
+      );
     }
 
     // 立即响应，不等待 AI 推理

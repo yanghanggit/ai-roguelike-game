@@ -44,6 +44,7 @@ describe("POST /game/start", () => {
     expect(state.map[0]).toHaveLength(4);
     expect(state.depth).toBe(1);
     expect(state.turn).toBe(0);
+    expect(state.phase).toBe("player");
   });
 
   it("all tiles start hidden (revealed=false)", async () => {
@@ -83,6 +84,11 @@ describe("POST /game/action — reveal", () => {
   });
 
   it("reveals a hidden tile and increments turn", async () => {
+    // 确保 (0,0) 是非怪物格
+    const state0 = sessions.get(sessionId)!;
+    state0.map[0]![0]!.type = TileType.Floor;
+    delete (state0.map[0]![0]! as { agentName?: string }).agentName;
+
     const res = await request(app)
       .post("/game/action")
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
@@ -90,6 +96,28 @@ describe("POST /game/action — reveal", () => {
     const state: GameState = res.body.state;
     expect(state.map[0]![0]!.revealed).toBe(true);
     expect(state.turn).toBe(1);
+  });
+
+  it("非怪物格 reveal 后，HTTP 响应 phase 为 dungeon", async () => {
+    const state0 = sessions.get(sessionId)!;
+    state0.map[0]![0]!.type = TileType.Floor;
+    delete (state0.map[0]![0]! as { agentName?: string }).agentName;
+
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+    expect(res.status).toBe(200);
+    expect(res.body.state.phase).toBe("dungeon");
+  });
+
+  it("dungeon phase 期间 reveal 返回 409", async () => {
+    const state0 = sessions.get(sessionId)!;
+    state0.phase = "dungeon";
+
+    const res = await request(app)
+      .post("/game/action")
+      .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
+    expect(res.status).toBe(409);
   });
 
   it("appends a log message on reveal", async () => {
@@ -160,7 +188,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     delete process.env["DEEPSEEK_API_KEY"];
   });
 
-  it("reveal Monster 格子后，state.agents 新增一个条目", async () => {
+  it("reveal Monster 格子后，state.agents 新增一个条目，phase 保持 player", async () => {
     mockFetch("我向玩家移动。");
 
     // 强制 (0,0) 为 Monster
@@ -176,6 +204,8 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     const returned: GameState = res.body.state;
     expect(returned.agents).toHaveLength(1);
     expect(returned.agents[0]!.name).toBe("monster-0-0");
+    // 怪物揭开后 phase 保持 player，给玩家一轮缓冲
+    expect(returned.phase).toBe("player");
   });
 
   it("reveal Monster 时仅激活，不立即 think（log 末尾不含 AI 行动）", async () => {

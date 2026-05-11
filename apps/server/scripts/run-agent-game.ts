@@ -188,14 +188,16 @@ program
       process.exit(1);
     }
 
-    // 新 Monster：激活 agent（不触发推理）
+    // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
     if (result.agentName) {
       activateMonsterAgent(state, result.agentName);
     }
 
-    // CLI：阻塞等待 AI 推理（非 Monster reveal + 已有激活 agent）
-    if (!result.agentName && state.agents.length > 0) {
+    // 非怪物格且是新格子：进入 dungeon phase，阻塞等待 AI 推理，再回 player phase
+    if (!result.agentName && result.message) {
+      state.phase = "dungeon";
       await triggerAgentThinking(state);
+      state.phase = "player";
     }
 
     const savedPath = saveGameState(state, SAVES_DIR);

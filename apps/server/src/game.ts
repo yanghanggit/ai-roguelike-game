@@ -88,6 +88,7 @@ export function createInitialState(sessionId: string): GameState {
   return {
     sessionId,
     turn: 0,
+    phase: "player",
     mapSize,
     depth: 1,
     player: {
@@ -161,6 +162,7 @@ export function createDevInitialState(sessionId: string): GameState {
   return {
     sessionId,
     turn: 0,
+    phase: "player",
     mapSize,
     depth: 1,
     player: { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 },
