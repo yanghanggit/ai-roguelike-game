@@ -3,6 +3,7 @@ import request from "supertest";
 import { app, sessions, createMap } from "./app.js";
 import type { GameState } from "@roguelike/shared";
 import { TileType } from "@roguelike/shared";
+import { GameAgent as GameAgentClass } from "./ai/index.js";
 
 // ─── DeepSeek fetch mock helper ───────────────────────────────────────────────
 
@@ -191,10 +192,11 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
   it("reveal Monster 格子后，state.agents 新增一个条目，phase 保持 player", async () => {
     mockFetch("我向玩家移动。");
 
-    // 强制 (0,0) 为 Monster
+    // 强制 (0,0) 为 Monster，并在 agents 中预建立对应的 agent
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
 
     const res = await request(app)
       .post("/game/action")
@@ -202,9 +204,8 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
 
     expect(res.status).toBe(200);
     const returned: GameState = res.body.state;
-    expect(Object.keys(returned.agents)).toHaveLength(1);
     expect(returned.agents["monster-0-0"]).toBeDefined();
-    expect(returned.agents["monster-0-0"]!.name).toBe("monster-0-0");
+    expect(returned.agents["monster-0-0"]!.activated).toBe(true);
     // 怪物揭开后 phase 保持 player，给玩家一轮缓冲
     expect(returned.phase).toBe("player");
   });
@@ -215,6 +216,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
 
     const res = await request(app)
       .post("/game/action")
@@ -222,7 +224,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
 
     const returned: GameState = res.body.state;
     // agents 已激活
-    expect(Object.keys(returned.agents)).toHaveLength(1);
+    expect(returned.agents["monster-0-0"]!.activated).toBe(true);
     // 但 AI 行动尚未出现（log 末尾应为 Monster 的系统消息，而非 AI 台词）
     expect(returned.log[returned.log.length - 1]).not.toBe("我决定攻击玩家！");
   });
@@ -234,6 +236,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     // (0,0) 设为 Monster，(1,0) 设为 Floor
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
     state.map[0]![1]!.type = TileType.Floor;
     delete (state.map[0]![1]! as { agentName?: string }).agentName;
 
@@ -250,7 +253,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     // HTTP 响应在 AI 推理完成前发出，响应体不含 AI 内容
     expect(res.status).toBe(200);
     expect(res.body.state.turn).toBe(2);
-    expect(Object.keys(res.body.state.agents)).toHaveLength(1);
+    expect(res.body.state.agents["monster-0-0"]!.activated).toBe(true);
     expect(res.body.state.log[res.body.state.log.length - 1]).not.toBe("我决定攻击玩家！");
   });
 
@@ -264,7 +267,11 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     expect(res.status).toBe(200);
-    expect(Object.keys(res.body.state.agents)).toHaveLength(0);
+    // agents 中少有地图测试设置的怪物，但未激活
+    const activated = Object.values(res.body.state.agents as GameState["agents"]).filter(
+      (a) => a.activated,
+    );
+    expect(activated).toHaveLength(0);
   });
 });
 

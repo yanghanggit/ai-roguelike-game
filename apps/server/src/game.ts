@@ -85,6 +85,7 @@ export function createRandomMap(size: MapSize): GameMap {
 
 export function createInitialState(sessionId: string): GameState {
   const mapSize: MapSize = 4;
+  const map = createRandomMap(mapSize);
   return {
     sessionId,
     turn: 0,
@@ -99,9 +100,9 @@ export function createInitialState(sessionId: string): GameState {
       level: 1,
       xp: 0,
     },
-    map: createRandomMap(mapSize),
+    map,
     log: ["欢迎来到地牢！"],
-    agents: {},
+    agents: buildAgentsFromMap(map),
   };
 }
 
@@ -159,6 +160,7 @@ export function createDevMap(): GameMap {
 
 export function createDevInitialState(sessionId: string): GameState {
   const mapSize: MapSize = 4;
+  const map = createDevMap();
   return {
     sessionId,
     turn: 0,
@@ -166,9 +168,9 @@ export function createDevInitialState(sessionId: string): GameState {
     mapSize,
     depth: 1,
     player: { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 },
-    map: createDevMap(),
+    map,
     log: ["【开发模式】固定地图已加载。"],
-    agents: {},
+    agents: buildAgentsFromMap(map),
   };
 }
 
@@ -198,12 +200,33 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
 // ─── Agent helpers ────────────────────────────────────────────────────────────
 
 /**
- * 将新发现的 Monster 格子对应的 GameAgent 激活，加入 state.agents 队列。
- * 仅激活，不触发推理（怪物尚未察觉到玩家）。
+ * 扫描地图中所有 Monster 格，预先创建全部 GameAgent（activated: false）。
+ * 地图生成时调用一次，后续揭开操作只需翻转激活状态。
+ */
+function buildAgentsFromMap(map: GameMap): Record<string, GameAgent> {
+  const agents: Record<string, GameAgent> = {};
+  for (const row of map) {
+    for (const tile of row) {
+      if (tile.type === TileType.Monster && tile.agentName) {
+        const systemPrompt = `你是一只地牢怪物（${tile.agentName}）。每个回合用一句话描述你的行动。`;
+        agents[tile.agentName] = new GameAgent(tile.agentName, systemPrompt);
+      }
+    }
+  }
+  return agents;
+}
+
+/**
+ * 将指定 agentName 的 GameAgent 激活（翻转 activated: true）。
+ * 要求 agent 已在 state.agents 中预存在（地图创建时建立）。
  */
 export function activateMonsterAgent(state: GameState, agentName: string): void {
-  const systemPrompt = `你是一只地牢怪物（${agentName}）。每个回合用一句话描述你的行动。`;
-  state.agents[agentName] = new GameAgent(agentName, systemPrompt);
+  const agent = state.agents[agentName];
+  if (!agent) {
+    console.warn(`[activateMonsterAgent] agent "${agentName}" not found in state.agents`);
+    return;
+  }
+  agent.activated = true;
 }
 
 /**
@@ -212,7 +235,7 @@ export function activateMonsterAgent(state: GameState, agentName: string): void 
  * HTTP 层以 fire-and-forget（void）方式调用；CLI 层 await 阻塞等待。
  */
 export async function triggerAgentThinking(state: GameState): Promise<void> {
-  const agentList = Object.values(state.agents) as GameAgent[];
+  const agentList = (Object.values(state.agents) as GameAgent[]).filter((a) => a.activated);
   if (agentList.length === 0) return;
   const perceptions = agentList.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   const actions = await thinkBatch(agentList, perceptions);

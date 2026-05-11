@@ -48,10 +48,12 @@ export interface AgentMessage {
   readonly additionalKwargs: Record<string, unknown>;
 }
 
-/** 怪物 Agent 快照：名称 + 完整对话上下文 */
+/** 怪物 Agent 快照：名称 + 完整对话上下文 + 激活状态 */
 export interface GameAgent {
   readonly name: string;
   readonly context: AgentMessage[];
+  /** 是否已被玩家揭开（揭开前不参与推理）*/
+  activated: boolean;
 }
 
 // ─── Turn phase ──────────────────────────────────────────────────────────────

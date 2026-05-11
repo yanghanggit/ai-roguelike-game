@@ -8,6 +8,7 @@ import {
   LOG_MESSAGES,
   createRandomMap,
   createInitialState,
+  createDevInitialState,
   applyReveal,
   activateMonsterAgent,
   triggerAgentThinking,
@@ -327,26 +328,28 @@ describe("JSON persistence", () => {
 // ─── activateMonsterAgent ────────────────────────────────────────────────────────────────
 
 describe("activateMonsterAgent", () => {
-  it("将指定 agentName 的 GameAgent 加入 state.agents", () => {
-    const state = createInitialState("s");
-    activateMonsterAgent(state, "monster-1-2");
+  it("将指定 agentName 的 GameAgent 设为 activated", () => {
+    const state = createDevInitialState("s");
+    // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
+    expect(state.agents["monster-0-1"]!.activated).toBe(false);
+    activateMonsterAgent(state, "monster-0-1");
+    expect(state.agents["monster-0-1"]!.activated).toBe(true);
+  });
+
+  it("重复激活同一 agent 不会增加数量", () => {
+    const state = createDevInitialState("s");
+    const countBefore = Object.keys(state.agents).length;
+    activateMonsterAgent(state, "monster-0-1");
+    activateMonsterAgent(state, "monster-0-1");
+    expect(Object.keys(state.agents).length).toBe(countBefore);
+    expect(state.agents["monster-0-1"]!.activated).toBe(true);
+  });
+
+  it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
+    const state = createDevInitialState("s");
+    // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
-    expect(state.agents["monster-1-2"]).toBeDefined();
-    expect(state.agents["monster-1-2"]!.name).toBe("monster-1-2");
-  });
-
-  it("重复调用两次则添加两个 agent", () => {
-    const state = createInitialState("s");
-    activateMonsterAgent(state, "monster-0-0");
-    activateMonsterAgent(state, "monster-3-3");
-    expect(Object.keys(state.agents)).toHaveLength(2);
-    expect(state.agents["monster-3-3"]).toBeDefined();
-    expect(state.agents["monster-3-3"]!.name).toBe("monster-3-3");
-  });
-
-  it("初始 state 的 agents 为空对象", () => {
-    const state = createInitialState("s");
-    expect(Object.keys(state.agents)).toHaveLength(0);
+    expect(state.agents["monster-0-1"]!.activated).toBe(false);
   });
 });
 
@@ -362,8 +365,9 @@ describe("triggerAgentThinking", () => {
     delete process.env["DEEPSEEK_API_KEY"];
   });
 
-  it("agents 为空时什么都不做，log 不变", async () => {
-    const state = createInitialState("s");
+  it("agents 均未激活时什么都不做，log 不变", async () => {
+    const state = createDevInitialState("s");
+    // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
     await triggerAgentThinking(state);
     expect(state.log).toEqual(logBefore);
@@ -386,13 +390,10 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s");
-    // 先揭开一个格子使 turn > 0，再激活怪物
-    state.map[0]![0]!.type = TileType.Monster;
-    (state.map[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
-    state.map[0]![0]!.glyph = GLYPHS[TileType.Monster];
-    applyReveal(state, 0, 0);
-    activateMonsterAgent(state, "monster-0-0");
+    const state = createDevInitialState("s");
+    // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
+    applyReveal(state, 0, 1);
+    activateMonsterAgent(state, "monster-0-1");
 
     await triggerAgentThinking(state);
     expect(state.log[state.log.length - 1]).toBe("怪物发动攻击！");
@@ -420,9 +421,12 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s");
-    activateMonsterAgent(state, "monster-0-0");
-    activateMonsterAgent(state, "monster-1-1");
+    const state = createDevInitialState("s");
+    activateMonsterAgent(state, "monster-0-1");
+    // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
+    const { GameAgent: GA } = await import("./ai/index.js");
+    state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物");
+    state.agents["monster-1-1"]!.activated = true;
     await triggerAgentThinking(state);
     expect(state.log).toContain("怪物A攻击！");
     expect(state.log).toContain("怪物B防御！");
@@ -445,10 +449,10 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s");
+    const state = createDevInitialState("s");
     // 将 log 充居到 19 条
     state.log = Array.from({ length: 19 }, (_, i) => `旧日志 ${i}`);
-    activateMonsterAgent(state, "monster-0-0");
+    activateMonsterAgent(state, "monster-0-1");
     await triggerAgentThinking(state);
     expect(state.log.length).toBeLessThanOrEqual(20);
   });
