@@ -10,6 +10,7 @@ import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import type { GameMap, GameState, MapSize, Tile } from "@roguelike/shared";
 import { GameAgent, thinkBatch } from "./ai/index.js";
+import { MOCK_MONSTERS } from "./mock-monsters.js";
 
 // ─── Glyphs & weights ─────────────────────────────────────────────────────────
 
@@ -205,11 +206,13 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
  */
 function buildAgentsFromMap(map: GameMap): Record<string, GameAgent> {
   const agents: Record<string, GameAgent> = {};
+  let monsterIndex = 0;
   for (const row of map) {
     for (const tile of row) {
       if (tile.type === TileType.Monster && tile.agentName) {
-        const systemPrompt = `你是一只地牢怪物（${tile.agentName}）。每个回合用一句话描述你的行动。`;
-        agents[tile.agentName] = new GameAgent(tile.agentName, systemPrompt);
+        const template = MOCK_MONSTERS[monsterIndex % MOCK_MONSTERS.length]!;
+        agents[tile.agentName] = new GameAgent(tile.agentName, template.systemPrompt);
+        monsterIndex++;
       }
     }
   }
