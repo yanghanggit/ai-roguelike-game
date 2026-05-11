@@ -394,7 +394,7 @@ describe("triggerAgentThinking", () => {
     activateAgent(state, "monster-0-1");
 
     await triggerAgentThinking(state);
-    expect(state.log[state.log.length - 1]).toBe("怪物发动攻击！");
+    expect(state.log[state.log.length - 1]).toBe("骷髅战士：怪物发动攻击！");
   });
 
   it("多个 agent 的 AI 行动全部追加到 log", async () => {
@@ -423,11 +423,11 @@ describe("triggerAgentThinking", () => {
     activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
-    state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物");
+    state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物", "测试系统提示");
     state.agents["monster-1-1"]!.activated = true;
     await triggerAgentThinking(state);
-    expect(state.log).toContain("怪物A攻击！");
-    expect(state.log).toContain("怪物B防御！");
+    expect(state.log).toContain("骷髅战士：怪物A攻击！");
+    expect(state.log).toContain("测试怪物：怪物B防御！");
   });
 
   it("log 最多保留 20 条条目", async () => {

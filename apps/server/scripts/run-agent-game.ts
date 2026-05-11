@@ -69,7 +69,7 @@ function printMap(state: GameState): void {
         .join(" ") +
       "   ? = 未揭开",
   );
-  console.log("  · 地板  # 墙  > 入口  E 怪物  $ 宝箱  ! 物品  ? 特殊\n");
+  console.log("  . 地板  # 墙  > 入口  E:名称 怪物  $ 宝箱  ! 物品  ? 特殊\n");
 }
 
 function printPlayer(state: GameState): void {

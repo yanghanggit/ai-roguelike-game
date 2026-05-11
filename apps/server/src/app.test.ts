@@ -196,7 +196,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
 
     const res = await request(app)
       .post("/game/action")
@@ -216,7 +216,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
 
     const res = await request(app)
       .post("/game/action")
@@ -236,7 +236,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     // (0,0) 设为 Monster，(1,0) 设为 Floor
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
     state.map[0]![1]!.type = TileType.Floor;
     delete (state.map[0]![1]! as { agentName?: string }).agentName;
 
