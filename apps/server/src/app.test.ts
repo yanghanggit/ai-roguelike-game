@@ -202,8 +202,9 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
 
     expect(res.status).toBe(200);
     const returned: GameState = res.body.state;
-    expect(returned.agents).toHaveLength(1);
-    expect(returned.agents[0]!.name).toBe("monster-0-0");
+    expect(Object.keys(returned.agents)).toHaveLength(1);
+    expect(returned.agents["monster-0-0"]).toBeDefined();
+    expect(returned.agents["monster-0-0"]!.name).toBe("monster-0-0");
     // 怪物揭开后 phase 保持 player，给玩家一轮缓冲
     expect(returned.phase).toBe("player");
   });
@@ -221,7 +222,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
 
     const returned: GameState = res.body.state;
     // agents 已激活
-    expect(returned.agents).toHaveLength(1);
+    expect(Object.keys(returned.agents)).toHaveLength(1);
     // 但 AI 行动尚未出现（log 末尾应为 Monster 的系统消息，而非 AI 台词）
     expect(returned.log[returned.log.length - 1]).not.toBe("我决定攻击玩家！");
   });
@@ -249,7 +250,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
     // HTTP 响应在 AI 推理完成前发出，响应体不含 AI 内容
     expect(res.status).toBe(200);
     expect(res.body.state.turn).toBe(2);
-    expect(res.body.state.agents).toHaveLength(1);
+    expect(Object.keys(res.body.state.agents)).toHaveLength(1);
     expect(res.body.state.log[res.body.state.log.length - 1]).not.toBe("我决定攻击玩家！");
   });
 
@@ -263,7 +264,7 @@ describe("POST /game/action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     expect(res.status).toBe(200);
-    expect(res.body.state.agents).toHaveLength(0);
+    expect(Object.keys(res.body.state.agents)).toHaveLength(0);
   });
 });
 

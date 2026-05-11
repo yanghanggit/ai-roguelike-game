@@ -71,8 +71,8 @@ export interface GameState {
   player: Player;
   map: GameMap;
   log: string[];
-  /** 本局已激活（已翻开）的 Agent，含完整对话上下文，按激活顺序追加 */
-  agents: GameAgent[];
+  /** 本局已激活（已翻开）的 Agent，含完整对话上下文，key = agentName */
+  agents: Record<string, GameAgent>;
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────

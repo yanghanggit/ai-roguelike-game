@@ -101,7 +101,7 @@ export function createInitialState(sessionId: string): GameState {
     },
     map: createRandomMap(mapSize),
     log: ["欢迎来到地牢！"],
-    agents: [],
+    agents: {},
   };
 }
 
@@ -168,7 +168,7 @@ export function createDevInitialState(sessionId: string): GameState {
     player: { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 },
     map: createDevMap(),
     log: ["【开发模式】固定地图已加载。"],
-    agents: [],
+    agents: {},
   };
 }
 
@@ -203,7 +203,7 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
  */
 export function activateMonsterAgent(state: GameState, agentName: string): void {
   const systemPrompt = `你是一只地牢怪物（${agentName}）。每个回合用一句话描述你的行动。`;
-  state.agents.push(new GameAgent(agentName, systemPrompt));
+  state.agents[agentName] = new GameAgent(agentName, systemPrompt);
 }
 
 /**
@@ -212,9 +212,10 @@ export function activateMonsterAgent(state: GameState, agentName: string): void 
  * HTTP 层以 fire-and-forget（void）方式调用；CLI 层 await 阻塞等待。
  */
 export async function triggerAgentThinking(state: GameState): Promise<void> {
-  if (state.agents.length === 0) return;
-  const perceptions = state.agents.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
-  const actions = await thinkBatch(state.agents as GameAgent[], perceptions);
+  const agentList = Object.values(state.agents) as GameAgent[];
+  if (agentList.length === 0) return;
+  const perceptions = agentList.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
+  const actions = await thinkBatch(agentList, perceptions);
   const entries = actions.filter((a) => a.length > 0);
   if (entries.length > 0) {
     state.log = [...state.log, ...entries].slice(-20);

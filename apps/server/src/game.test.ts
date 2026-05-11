@@ -330,21 +330,23 @@ describe("activateMonsterAgent", () => {
   it("将指定 agentName 的 GameAgent 加入 state.agents", () => {
     const state = createInitialState("s");
     activateMonsterAgent(state, "monster-1-2");
-    expect(state.agents).toHaveLength(1);
-    expect(state.agents[0]!.name).toBe("monster-1-2");
+    expect(Object.keys(state.agents)).toHaveLength(1);
+    expect(state.agents["monster-1-2"]).toBeDefined();
+    expect(state.agents["monster-1-2"]!.name).toBe("monster-1-2");
   });
 
   it("重复调用两次则添加两个 agent", () => {
     const state = createInitialState("s");
     activateMonsterAgent(state, "monster-0-0");
     activateMonsterAgent(state, "monster-3-3");
-    expect(state.agents).toHaveLength(2);
-    expect(state.agents[1]!.name).toBe("monster-3-3");
+    expect(Object.keys(state.agents)).toHaveLength(2);
+    expect(state.agents["monster-3-3"]).toBeDefined();
+    expect(state.agents["monster-3-3"]!.name).toBe("monster-3-3");
   });
 
-  it("初始 state 的 agents 为空数组", () => {
+  it("初始 state 的 agents 为空对象", () => {
     const state = createInitialState("s");
-    expect(state.agents).toHaveLength(0);
+    expect(Object.keys(state.agents)).toHaveLength(0);
   });
 });
 

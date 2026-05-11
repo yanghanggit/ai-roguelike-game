@@ -128,7 +128,7 @@ export default function App() {
         if (!res.ok) throw new Error("Action failed");
         // SSE 是状态的唯一来源：dungeon 和 player 两个阶段都通过 SSE push
         // 不使用 HTTP 响应的 state，避免与 SSE 竞争覆盖
-        await res.json() as ActionResponse;
+        (await res.json()) as ActionResponse;
       } catch (e) {
         setError(String(e));
       }

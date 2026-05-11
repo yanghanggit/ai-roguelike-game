@@ -69,7 +69,7 @@ app.post("/game/action", (req, res) => {
       // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
       activateMonsterAgent(state, result.agentName);
       console.log(
-        `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${state.agents.length} total), phase stays "player"`,
+        `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${Object.keys(state.agents).length} total), phase stays "player"`,
       );
       // push 最新 state（含新揭开的怪物格），SSE 是唯一状态源
       pushStateToClients(sessionId, state);
@@ -77,7 +77,7 @@ app.post("/game/action", (req, res) => {
       // 非怪物格且是新格子：进入 dungeon phase，触发所有已激活 agent 思考
       state.phase = "dungeon";
       console.log(
-        `[Action] Non-monster reveal at (${action.x},${action.y}) — phase → "dungeon", firing think for ${state.agents.length} agent(s) (turn=${state.turn})`,
+        `[Action] Non-monster reveal at (${action.x},${action.y}) — phase → "dungeon", firing think for ${Object.keys(state.agents).length} agent(s) (turn=${state.turn})`,
       );
       // 立即 push dungeon 状态，让客户端锁定地图（SSE 是唯一状态源）
       pushStateToClients(sessionId, state);
