@@ -126,8 +126,9 @@ export default function App() {
           }),
         });
         if (!res.ok) throw new Error("Action failed");
-        const data: ActionResponse = await res.json();
-        setState(data.state);
+        // SSE 是状态的唯一来源：dungeon 和 player 两个阶段都通过 SSE push
+        // 不使用 HTTP 响应的 state，避免与 SSE 竞争覆盖
+        await res.json() as ActionResponse;
       } catch (e) {
         setError(String(e));
       }
@@ -138,11 +139,21 @@ export default function App() {
   // SSE：当 sessionId 变化时（新游戏）订阅服务端推送，实时接收 AI 推理后的状态更新
   useEffect(() => {
     if (!state?.sessionId) return;
+    console.log(`[SSE client] connecting for session ${state.sessionId.slice(0, 8)}`);
     const es = new EventSource(`/game/events/${state.sessionId}`);
+    es.onopen = () => {
+      console.log(`[SSE client] connection opened`);
+    };
     es.onmessage = (event) => {
-      setState(JSON.parse(event.data as string) as GameState);
+      const newState = JSON.parse(event.data as string) as GameState;
+      console.log(`[SSE client] received phase="${newState.phase}" turn=${newState.turn}`);
+      setState(newState);
+    };
+    es.onerror = (e) => {
+      console.error(`[SSE client] error`, e);
     };
     return () => {
+      console.log(`[SSE client] closing`);
       es.close();
     };
   }, [state?.sessionId]);

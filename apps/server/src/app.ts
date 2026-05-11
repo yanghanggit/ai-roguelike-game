@@ -71,22 +71,28 @@ app.post("/game/action", (req, res) => {
       console.log(
         `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${state.agents.length} total), phase stays "player"`,
       );
+      // push 最新 state（含新揭开的怪物格），SSE 是唯一状态源
+      pushStateToClients(sessionId, state);
     } else if (result.message) {
       // 非怪物格且是新格子：进入 dungeon phase，触发所有已激活 agent 思考
       state.phase = "dungeon";
       console.log(
         `[Action] Non-monster reveal at (${action.x},${action.y}) — phase → "dungeon", firing think for ${state.agents.length} agent(s) (turn=${state.turn})`,
       );
+      // 立即 push dungeon 状态，让客户端锁定地图（SSE 是唯一状态源）
+      pushStateToClients(sessionId, state);
       void triggerAgentThinking(state).then(() => {
         state.phase = "player";
         console.log(`[Action] Dungeon turn done — phase → "player", log[-1]="${state.log.at(-1)}"`);
+        console.log(`[Action] About to push SSE for session ${sessionId.slice(0, 8)}...`);
         pushStateToClients(sessionId, state);
       });
     } else {
-      // 格子已揭开：不改 phase
+      // 格子已揭开：不改 phase，但仍 push 保持 SSE 为唯一状态源
       console.log(
         `[Action] Reveal at (${action.x},${action.y}) — already revealed, no phase change`,
       );
+      pushStateToClients(sessionId, state);
     }
 
     // 立即响应，不等待 AI 推理

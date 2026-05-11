@@ -8,16 +8,20 @@ const sseClients = new Map<string, Set<Response>>();
 export function pushStateToClients(sessionId: string, state: GameState): void {
   const clients = sseClients.get(sessionId);
   if (!clients || clients.size === 0) {
-    console.log(`[SSE] push skipped — no clients for session ${sessionId}`);
+    console.log(`[SSE] ❌ push skipped — no clients for session ${sessionId.slice(0, 8)}`);
     return;
   }
   console.log(
-    `[SSE] pushing state to ${clients.size} client(s) for session ${sessionId} (turn=${state.turn}, log[-1]="${state.log.at(-1)}")`,
+    `[SSE] ▶ pushing phase="${state.phase}" to ${clients.size} client(s) (session ${sessionId.slice(0, 8)}, turn=${state.turn})`,
   );
   const data = JSON.stringify(state);
+  let written = 0;
   for (const client of clients) {
-    client.write(`data: ${data}\n\n`);
+    const ok = client.write(`data: ${data}\n\n`);
+    console.log(`[SSE]   write() returned ${ok} (false=backpressure)`);
+    written++;
   }
+  console.log(`[SSE] ✓ wrote to ${written} client(s)`);
 }
 
 export function registerSseRoute(app: Express, sessions: Map<string, GameState>): void {
@@ -41,7 +45,8 @@ export function registerSseRoute(app: Express, sessions: Map<string, GameState>)
 
     // Catch-up push：立即推送当前状态，防止客户端在连接建立前错过的 push（竞态修复）
     const currentState = sessions.get(sessionId)!;
-    res.write(`data: ${JSON.stringify(currentState)}\n\n`);
+    const ok = res.write(`data: ${JSON.stringify(currentState)}\n\n`);
+    console.log(`[SSE] catch-up push phase="${currentState.phase}" write()=${ok}`);
 
     req.on("close", () => {
       const clients = sseClients.get(sessionId);
