@@ -48,11 +48,7 @@ async function testChat(): Promise<void> {
 async function testBatchChat(): Promise<void> {
   console.log("\n=== 测试 batchChat() ===");
 
-  const questions = [
-    "1+1等于几？",
-    "天空为什么是蓝色的？",
-    "请用一句话描述 TypeScript 语言。",
-  ];
+  const questions = ["1+1等于几？", "天空为什么是蓝色的？", "请用一句话描述 TypeScript 语言。"];
 
   const clients = questions.map(
     (q, i) =>
@@ -61,7 +57,7 @@ async function testBatchChat(): Promise<void> {
         prompt: q,
         context: [_SYSTEM],
         model: MODEL_FLASH,
-      })
+      }),
   );
 
   await DeepSeekClient.batchChat(clients);

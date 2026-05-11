@@ -201,9 +201,7 @@ export class DeepSeekClient {
         console.log(`[DeepSeekClient] listModels: ${ids.join(", ")}`);
         return ids;
       }
-      console.error(
-        `[DeepSeekClient] listModels failed (${res.status}): ${await res.text()}`
-      );
+      console.error(`[DeepSeekClient] listModels failed (${res.status}): ${await res.text()}`);
       return [];
     } catch (e) {
       console.error(`[DeepSeekClient] listModels error: ${String(e)}`);
@@ -223,9 +221,7 @@ export class DeepSeekClient {
         console.log(`[DeepSeekClient] getBalance: ${JSON.stringify(data)}`);
         return data;
       }
-      console.error(
-        `[DeepSeekClient] getBalance failed (${res.status}): ${await res.text()}`
-      );
+      console.error(`[DeepSeekClient] getBalance failed (${res.status}): ${await res.text()}`);
       return {};
     } catch (e) {
       console.error(`[DeepSeekClient] getBalance error: ${String(e)}`);
@@ -250,12 +246,10 @@ export class DeepSeekClient {
 
     if (failed.length > 0) {
       console.warn(
-        `[DeepSeekClient] batchChat: ${failed.length}/${clients.length} failed (${elapsed}s)`
+        `[DeepSeekClient] batchChat: ${failed.length}/${clients.length} failed (${elapsed}s)`,
       );
     } else {
-      console.log(
-        `[DeepSeekClient] batchChat: all ${clients.length} succeeded (${elapsed}s)`
-      );
+      console.log(`[DeepSeekClient] batchChat: all ${clients.length} succeeded (${elapsed}s)`);
     }
   }
 
@@ -282,12 +276,10 @@ export class DeepSeekClient {
         this.parseResponse(data);
         console.log(`[${this._name}] responseContent:\n${this.responseContent}`);
         console.debug(
-          `[${this._name}] cache: hit=${this._promptCacheHitTokens}, miss=${this._promptCacheMissTokens}`
+          `[${this._name}] cache: hit=${this._promptCacheHitTokens}, miss=${this._promptCacheMissTokens}`,
         );
         if (this.responseReasoningContent) {
-          console.log(
-            `\n💭 [${this._name}] 思考过程:\n${this.responseReasoningContent}\n`
-          );
+          console.log(`\n💭 [${this._name}] 思考过程:\n${this.responseReasoningContent}\n`);
           console.log("=".repeat(60));
         }
       } else {
@@ -359,32 +351,22 @@ export class DeepSeekClient {
   private handleErrorResponse(status: number, text: string): void {
     switch (status) {
       case 400:
-        console.error(
-          `[${this._name}] 请求格式错误 (400) — 请检查请求体: ${text}`
-        );
+        console.error(`[${this._name}] 请求格式错误 (400) — 请检查请求体: ${text}`);
         break;
       case 401:
-        console.error(
-          `[${this._name}] 认证失败 (401) — API key 错误，请检查 DEEPSEEK_API_KEY`
-        );
+        console.error(`[${this._name}] 认证失败 (401) — API key 错误，请检查 DEEPSEEK_API_KEY`);
         break;
       case 402:
-        console.error(
-          `[${this._name}] 余额不足 (402) — 请前往 DeepSeek 平台充值`
-        );
+        console.error(`[${this._name}] 余额不足 (402) — 请前往 DeepSeek 平台充值`);
         break;
       case 422:
-        console.error(
-          `[${this._name}] 参数错误 (422) — 请检查请求参数: ${text}`
-        );
+        console.error(`[${this._name}] 参数错误 (422) — 请检查请求参数: ${text}`);
         break;
       case 429:
         console.warn(`[${this._name}] 请求速率达到上限 (429) — 请稍后重试`);
         break;
       case 500:
-        console.error(
-          `[${this._name}] 服务器内部故障 (500) — 请稍后重试`
-        );
+        console.error(`[${this._name}] 服务器内部故障 (500) — 请稍后重试`);
         break;
       case 503:
         console.warn(`[${this._name}] 服务器繁忙 (503) — 请稍后重试`);

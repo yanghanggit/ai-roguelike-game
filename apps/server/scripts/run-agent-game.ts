@@ -17,7 +17,16 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { createInitialState, createDevInitialState, applyReveal, activateMonsterAgent, triggerAgentThinking, saveGameState, loadLatestGameState, GLYPHS } from "../src/game.js";
+import {
+  createInitialState,
+  createDevInitialState,
+  applyReveal,
+  activateMonsterAgent,
+  triggerAgentThinking,
+  saveGameState,
+  loadLatestGameState,
+  GLYPHS,
+} from "../src/game.js";
 import type { GameState } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -48,22 +57,27 @@ function printMap(state: GameState): void {
 
   for (let y = 0; y < size; y++) {
     const row = state.map[y]!;
-    const cells = row
-      .map((tile) => (tile.revealed ? ` ${tile.glyph}` : " ?"))
-      .join("");
+    const cells = row.map((tile) => (tile.revealed ? ` ${tile.glyph}` : " ?")).join("");
     console.log(` ${y} │${cells} │`);
   }
   console.log("   +" + "──".repeat(size) + "+");
 
   // 图例
-  console.log("\n图例：" + Object.entries(GLYPHS).map(([, g]) => g).join(" ") +
-    "   ? = 未揭开");
+  console.log(
+    "\n图例：" +
+      Object.entries(GLYPHS)
+        .map(([, g]) => g)
+        .join(" ") +
+      "   ? = 未揭开",
+  );
   console.log("  · 地板  # 墙  > 入口  E 怪物  $ 宝箱  ! 物品  ? 特殊\n");
 }
 
 function printPlayer(state: GameState): void {
   const p = state.player;
-  console.log(`玩家状态：HP ${p.hp}/${p.maxHp} · ATK ${p.attack} · DEF ${p.defense} · Lv ${p.level} · XP ${p.xp}`);
+  console.log(
+    `玩家状态：HP ${p.hp}/${p.maxHp} · ATK ${p.attack} · DEF ${p.defense} · Lv ${p.level} · XP ${p.xp}`,
+  );
 }
 
 function printLog(state: GameState): void {

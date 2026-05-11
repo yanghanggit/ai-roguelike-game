@@ -93,6 +93,3 @@ export interface ActionRequest {
 export interface ActionResponse {
   state: GameState;
 }
-
-
-

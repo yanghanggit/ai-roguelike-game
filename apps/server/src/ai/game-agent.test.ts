@@ -135,7 +135,8 @@ describe("thinkBatch() — 正常响应", () => {
     // 每次调用 fetch 依次返回不同内容（按调用顺序）
     vi.stubGlobal(
       "fetch",
-      vi.fn()
+      vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -149,7 +150,7 @@ describe("thinkBatch() — 正常响应", () => {
             choices: [{ message: { role: "assistant", content: "骷髅行动。" } }],
             usage: { prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 5 },
           }),
-        })
+        }),
     );
   });
   afterEach(() => {
@@ -185,9 +186,7 @@ describe("thinkBatch() — 正常响应", () => {
 
   it("agents 与 perceptions 长度不一致时抛出错误", async () => {
     const slime = new GameAgent("slime", "你是史莱姆。");
-    await expect(thinkBatch([slime], ["A", "B"])).rejects.toThrow(
-      /长度不一致/
-    );
+    await expect(thinkBatch([slime], ["A", "B"])).rejects.toThrow(/长度不一致/);
   });
 });
 
@@ -196,7 +195,8 @@ describe("thinkBatch() — 部分失败", () => {
     process.env["DEEPSEEK_API_KEY"] = "test-key";
     vi.stubGlobal(
       "fetch",
-      vi.fn()
+      vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -208,7 +208,7 @@ describe("thinkBatch() — 部分失败", () => {
           ok: false,
           status: 500,
           text: async () => "error",
-        })
+        }),
     );
   });
   afterEach(() => {

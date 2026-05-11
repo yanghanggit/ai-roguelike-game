@@ -153,8 +153,14 @@ describe("createInitialState", () => {
     const s1 = createInitialState("a");
     const s2 = createInitialState("b");
     // 有极低概率两张地图完全相同，但 16 格分布几乎不可能
-    const types1 = s1.map.flat().map((t) => t.type).join(",");
-    const types2 = s2.map.flat().map((t) => t.type).join(",");
+    const types1 = s1.map
+      .flat()
+      .map((t) => t.type)
+      .join(",");
+    const types2 = s2.map
+      .flat()
+      .map((t) => t.type)
+      .join(",");
     expect(types1).not.toBe(types2);
   });
 });
@@ -367,7 +373,12 @@ describe("triggerAgentThinking", () => {
         ok: true,
         json: async () => ({
           choices: [{ message: { content: "怪物发动攻击！" } }],
-          usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            prompt_cache_hit_tokens: 0,
+            prompt_cache_miss_tokens: 0,
+          },
         }),
       }),
     );
@@ -395,7 +406,12 @@ describe("triggerAgentThinking", () => {
           ok: true,
           json: async () => ({
             choices: [{ message: { content } }],
-            usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+            usage: {
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              prompt_cache_hit_tokens: 0,
+              prompt_cache_miss_tokens: 0,
+            },
           }),
         };
       }),
@@ -416,7 +432,12 @@ describe("triggerAgentThinking", () => {
         ok: true,
         json: async () => ({
           choices: [{ message: { content: "AI 行动" } }],
-          usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            prompt_cache_hit_tokens: 0,
+            prompt_cache_miss_tokens: 0,
+          },
         }),
       }),
     );

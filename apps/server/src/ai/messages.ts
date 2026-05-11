@@ -34,21 +34,21 @@ export type ContextMessage = SystemMessage | HumanMessage | AIMessage;
 
 export function systemMessage(
   content: string,
-  additionalKwargs: Record<string, unknown> = {}
+  additionalKwargs: Record<string, unknown> = {},
 ): SystemMessage {
   return { type: "system", content, additionalKwargs };
 }
 
 export function humanMessage(
   content: string,
-  additionalKwargs: Record<string, unknown> = {}
+  additionalKwargs: Record<string, unknown> = {},
 ): HumanMessage {
   return { type: "human", content, additionalKwargs };
 }
 
 export function aiMessage(
   content: string,
-  additionalKwargs: Record<string, unknown> = {}
+  additionalKwargs: Record<string, unknown> = {},
 ): AIMessage {
   return { type: "ai", content, additionalKwargs };
 }
@@ -65,7 +65,7 @@ export function aiMessage(
 export function getBufferString(
   messages: readonly BaseMessage[],
   humanPrefix = "Human",
-  aiPrefix = "AI"
+  aiPrefix = "AI",
 ): string {
   return messages
     .map((msg) => {

@@ -54,23 +54,21 @@ export async function think(agent: GameAgent, perception: string): Promise<strin
 // agents[i] 对应 perceptions[i]，返回的字符串数组顺序与输入一致。
 // 若 agents 与 perceptions 长度不一致则抛出错误（调用方问题，快速失败）。
 
-export async function thinkBatch(
-  agents: GameAgent[],
-  perceptions: string[]
-): Promise<string[]> {
+export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Promise<string[]> {
   if (agents.length !== perceptions.length) {
     throw new Error(
-      `thinkBatch: agents(${agents.length}) 与 perceptions(${perceptions.length}) 长度不一致`
+      `thinkBatch: agents(${agents.length}) 与 perceptions(${perceptions.length}) 长度不一致`,
     );
   }
   if (agents.length === 0) return [];
 
-  const clients = agents.map((agent, i) =>
-    new DeepSeekClient({
-      name: agent.name,
-      prompt: perceptions[i]!,
-      context: agent.context,
-    })
+  const clients = agents.map(
+    (agent, i) =>
+      new DeepSeekClient({
+        name: agent.name,
+        prompt: perceptions[i]!,
+        context: agent.context,
+      }),
   );
 
   await DeepSeekClient.batchChat(clients);

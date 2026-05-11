@@ -58,10 +58,7 @@ export function createRandomMap(size: MapSize): GameMap {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;
 
-  const pool: TileType[] = Array.from(
-    { length: entranceCount },
-    (): TileType => TileType.Entrance
-  );
+  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => TileType.Entrance);
   for (let i = entranceCount; i < total; i++) pool.push(weightedRandom());
 
   // Fisher-Yates shuffle
@@ -74,13 +71,13 @@ export function createRandomMap(size: MapSize): GameMap {
   for (let y = 0; y < size; y++) {
     const row: Tile[] = [];
     for (let x = 0; x < size; x++) {
-        const type = pool[y * size + x]!;
-        const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
-        if (type === TileType.Monster) {
-          tile.agentName = `monster-${x}-${y}`;
-        }
-        row.push(tile);
+      const type = pool[y * size + x]!;
+      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
+      if (type === TileType.Monster) {
+        tile.agentName = `monster-${x}-${y}`;
       }
+      row.push(tile);
+    }
     map.push(row);
   }
   return map;
@@ -142,10 +139,10 @@ export interface ApplyRevealResult {
  */
 export function createDevMap(): GameMap {
   const layout: TileType[][] = [
-    [TileType.Entrance, TileType.Floor,   TileType.Wall,    TileType.Floor  ],
-    [TileType.Monster,  TileType.Floor,   TileType.Floor,   TileType.Treasure],
-    [TileType.Floor,    TileType.Item,    TileType.Wall,    TileType.Floor  ],
-    [TileType.Floor,    TileType.Floor,   TileType.Floor,   TileType.Special ],
+    [TileType.Entrance, TileType.Floor, TileType.Wall, TileType.Floor],
+    [TileType.Monster, TileType.Floor, TileType.Floor, TileType.Treasure],
+    [TileType.Floor, TileType.Item, TileType.Wall, TileType.Floor],
+    [TileType.Floor, TileType.Floor, TileType.Floor, TileType.Special],
   ];
 
   return layout.map((row, y) =>
@@ -155,7 +152,7 @@ export function createDevMap(): GameMap {
         tile.agentName = `monster-${x}-${y}`;
       }
       return tile;
-    })
+    }),
   );
 }
 
@@ -179,11 +176,7 @@ export function createDevInitialState(sessionId: string): GameState {
  * 对 state 执行 reveal 动作（直接 mutate）。
  * 若格子已揭开，返回 ok:true 但不更新状态。
  */
-export function applyReveal(
-  state: GameState,
-  x: number,
-  y: number
-): ApplyRevealResult {
+export function applyReveal(state: GameState, x: number, y: number): ApplyRevealResult {
   const tile = state.map[y]?.[x];
   if (!tile) {
     return { ok: false, error: `坐标 (${x}, ${y}) 超出地图范围` };
@@ -218,9 +211,7 @@ export function activateMonsterAgent(state: GameState, agentName: string): void 
  */
 export async function triggerAgentThinking(state: GameState): Promise<void> {
   if (state.agents.length === 0) return;
-  const perceptions = state.agents.map(
-    () => `第 ${state.turn} 回合，玩家揭开了一个新格子。`
-  );
+  const perceptions = state.agents.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   const actions = await thinkBatch(state.agents as GameAgent[], perceptions);
   const entries = actions.filter((a) => a.length > 0);
   if (entries.length > 0) {
@@ -232,10 +223,7 @@ export async function triggerAgentThinking(state: GameState): Promise<void> {
 
 /** 生成带时间戳的存档文件名，格式：game-state-20260509T143857-123.json */
 function makeTimestampedFilename(): string {
-  const ts = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-")
-    .replace("Z", "");
+  const ts = new Date().toISOString().replace(/[:.]/g, "-").replace("Z", "");
   return `game-state-${ts}.json`;
 }
 

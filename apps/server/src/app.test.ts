@@ -13,9 +13,14 @@ function mockFetch(content: string) {
       ok: true,
       json: async () => ({
         choices: [{ message: { content } }],
-        usage: { prompt_tokens: 0, completion_tokens: 0, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 0 },
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          prompt_cache_hit_tokens: 0,
+          prompt_cache_miss_tokens: 0,
+        },
       }),
-    })
+    }),
   );
 }
 
