@@ -21,12 +21,11 @@ import {
   createInitialState,
   createDevInitialState,
   applyReveal,
-  activateMonsterAgent,
+  activateAgent,
   triggerAgentThinking,
-  saveGameState,
-  loadLatestGameState,
   GLYPHS,
 } from "../src/game.js";
+import { saveGameState, loadLatestGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -190,7 +189,7 @@ program
 
     // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
     if (result.agentName) {
-      activateMonsterAgent(state, result.agentName);
+      activateAgent(state, result.agentName);
     }
 
     // 非怪物格且是新格子：进入 dungeon phase，阻塞等待 AI 推理，再回 player phase

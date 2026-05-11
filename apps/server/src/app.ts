@@ -11,7 +11,7 @@ import {
   createRandomMap,
   createInitialState,
   applyReveal,
-  activateMonsterAgent,
+  activateAgent,
   triggerAgentThinking,
 } from "./game.js";
 
@@ -67,7 +67,7 @@ app.post("/game/action", (req, res) => {
 
     if (result.agentName) {
       // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
-      activateMonsterAgent(state, result.agentName);
+      activateAgent(state, result.agentName);
       console.log(
         `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${Object.keys(state.agents).length} total), phase stays "player"`,
       );

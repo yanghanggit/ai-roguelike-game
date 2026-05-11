@@ -10,12 +10,10 @@ import {
   createInitialState,
   createDevInitialState,
   applyReveal,
-  activateMonsterAgent,
+  activateAgent,
   triggerAgentThinking,
-  saveGameState,
-  loadGameState,
-  loadLatestGameState,
 } from "./game.js";
+import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
 
 // ─── GLYPHS ───────────────────────────────────────────────────────────────────
 
@@ -332,15 +330,15 @@ describe("activateMonsterAgent", () => {
     const state = createDevInitialState("s");
     // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
     expect(state.agents["monster-0-1"]!.activated).toBe(false);
-    activateMonsterAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
     expect(state.agents["monster-0-1"]!.activated).toBe(true);
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
     const state = createDevInitialState("s");
     const countBefore = Object.keys(state.agents).length;
-    activateMonsterAgent(state, "monster-0-1");
-    activateMonsterAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
     expect(Object.keys(state.agents).length).toBe(countBefore);
     expect(state.agents["monster-0-1"]!.activated).toBe(true);
   });
@@ -393,7 +391,7 @@ describe("triggerAgentThinking", () => {
     const state = createDevInitialState("s");
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
-    activateMonsterAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
 
     await triggerAgentThinking(state);
     expect(state.log[state.log.length - 1]).toBe("怪物发动攻击！");
@@ -422,7 +420,7 @@ describe("triggerAgentThinking", () => {
     );
 
     const state = createDevInitialState("s");
-    activateMonsterAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
     state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物");
@@ -452,7 +450,7 @@ describe("triggerAgentThinking", () => {
     const state = createDevInitialState("s");
     // 将 log 充居到 19 条
     state.log = Array.from({ length: 19 }, (_, i) => `旧日志 ${i}`);
-    activateMonsterAgent(state, "monster-0-1");
+    activateAgent(state, "monster-0-1");
     await triggerAgentThinking(state);
     expect(state.log.length).toBeLessThanOrEqual(20);
   });

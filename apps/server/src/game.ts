@@ -5,8 +5,6 @@
  * 可被 Express 路由和独立脚本共同引用。
  */
 
-import * as path from "node:path";
-import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import type { GameMap, GameState, MapSize, Tile } from "@roguelike/shared";
 import { GameAgent, thinkBatch } from "./ai/index.js";
@@ -223,7 +221,7 @@ function buildAgentsFromMap(map: GameMap): Record<string, GameAgent> {
  * 将指定 agentName 的 GameAgent 激活（翻转 activated: true）。
  * 要求 agent 已在 state.agents 中预存在（地图创建时建立）。
  */
-export function activateMonsterAgent(state: GameState, agentName: string): void {
+export function activateAgent(state: GameState, agentName: string): void {
   const agent = state.agents[agentName];
   if (!agent) {
     console.warn(`[activateMonsterAgent] agent "${agentName}" not found in state.agents`);
@@ -248,41 +246,3 @@ export async function triggerAgentThinking(state: GameState): Promise<void> {
   }
 }
 
-// ─── JSON persistence ─────────────────────────────────────────────────────────
-
-/** 生成带时间戳的存档文件名，格式：game-state-20260509T143857-123.json */
-function makeTimestampedFilename(): string {
-  const ts = new Date().toISOString().replace(/[:.]/g, "-").replace("Z", "");
-  return `game-state-${ts}.json`;
-}
-
-/**
- * 将 GameState 保存为带时间戳的 JSON 文件（自动创建 savesDir）。
- * 返回实际写入的文件路径。
- */
-export function saveGameState(state: GameState, savesDir: string): string {
-  const filePath = path.join(savesDir, makeTimestampedFilename());
-  fse.outputJsonSync(filePath, state, { spaces: 2 });
-  return filePath;
-}
-
-/** 从指定路径直接读取存档（供单次精确加载使用） */
-export function loadGameState(filePath: string): GameState {
-  return fse.readJsonSync(filePath) as GameState;
-}
-
-/**
- * 从 savesDir 中读取最新的存档文件。
- * 文件名按字典序排序，ISO 时间戳天然可排序。
- */
-export function loadLatestGameState(savesDir: string): GameState {
-  const files = fse
-    .readdirSync(savesDir)
-    .filter((f) => f.startsWith("game-state-") && f.endsWith(".json"))
-    .sort();
-  if (files.length === 0) {
-    throw new Error(`saves 目录中没有找到存档文件：${savesDir}`);
-  }
-  const latest = files[files.length - 1]!;
-  return fse.readJsonSync(path.join(savesDir, latest)) as GameState;
-}
