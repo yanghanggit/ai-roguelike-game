@@ -187,13 +187,13 @@ program
       process.exit(1);
     }
 
-    // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
+    // 怪物格：agent を激活
     if (result.agentName) {
       activateAgent(state, result.agentName);
     }
 
-    // 非怪物格且是新格子：进入 dungeon phase，阻塞等待 AI 推理，再回 player phase
-    if (!result.agentName && result.message) {
+    // 新格子（怪物・非怪物）：dungeon phase に入り、AI 推理を同期待ち
+    if (result.message) {
       state.phase = "dungeon";
       await triggerAgentThinking(state);
       state.phase = "player";

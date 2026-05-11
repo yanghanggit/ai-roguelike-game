@@ -43,7 +43,7 @@ app.post("/game/start", (_req, res) => {
 
 registerSseRoute(app, sessions);
 
-app.post("/game/action", (req, res) => {
+app.post("/game/player-action", (req, res) => {
   const body = req.body as ActionRequest;
   const { sessionId, action } = body;
 
@@ -65,40 +65,51 @@ app.post("/game/action", (req, res) => {
       return;
     }
 
-    if (result.agentName) {
-      // 怪物格：仅激活 agent，保持 phase: "player"，给玩家一轮缓冲
-      activateAgent(state, result.agentName);
-      console.log(
-        `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${Object.keys(state.agents).length} total), phase stays "player"`,
-      );
-      // push 最新 state（含新揭开的怪物格），SSE 是唯一状态源
-      pushStateToClients(sessionId, state);
-    } else if (result.message) {
-      // 非怪物格且是新格子：进入 dungeon phase，触发所有已激活 agent 思考
+    if (result.message) {
+      // 新格子（怪物或非怪物）：激活 agent（若有），进入 dungeon phase
+      if (result.agentName) {
+        activateAgent(state, result.agentName);
+        console.log(
+          `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${Object.keys(state.agents).length} total)`,
+        );
+      }
       state.phase = "dungeon";
       console.log(
-        `[Action] Non-monster reveal at (${action.x},${action.y}) — phase → "dungeon", firing think for ${Object.keys(state.agents).length} agent(s) (turn=${state.turn})`,
+        `[Action] New tile at (${action.x},${action.y}) — phase → "dungeon" (turn=${state.turn})`,
       );
-      // 立即 push dungeon 状态，让客户端锁定地图（SSE 是唯一状态源）
       pushStateToClients(sessionId, state);
-      void triggerAgentThinking(state).then(() => {
-        state.phase = "player";
-        console.log(`[Action] Dungeon turn done — phase → "player", log[-1]="${state.log.at(-1)}"`);
-        console.log(`[Action] About to push SSE for session ${sessionId.slice(0, 8)}...`);
-        pushStateToClients(sessionId, state);
-      });
     } else {
-      // 格子已揭开：不改 phase，但仍 push 保持 SSE 为唯一状态源
+      // 格子已揭开：不改 phase，仍 push 保持 SSE 为唯一状态源
       console.log(
         `[Action] Reveal at (${action.x},${action.y}) — already revealed, no phase change`,
       );
       pushStateToClients(sessionId, state);
     }
 
-    // 立即响应，不等待 AI 推理
     res.json({ state } satisfies ActionResponse);
     return;
   }
 
   res.status(400).json({ error: "Unknown action type" });
+});
+
+app.post("/game/dungeon-advance", async (req, res) => {
+  const { sessionId } = req.body as { sessionId: string };
+
+  const state = sessions.get(sessionId);
+  if (!state) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  if (state.phase !== "dungeon") {
+    res.status(409).json({ error: "非地下城行动阶段" });
+    return;
+  }
+
+  await triggerAgentThinking(state);
+  state.phase = "player";
+  console.log(`[Dungeon] Advance done — phase → "player", log[-1]="${state.log.at(-1)}"`);
+  pushStateToClients(sessionId, state);
+  res.json({ state } satisfies ActionResponse);
 });

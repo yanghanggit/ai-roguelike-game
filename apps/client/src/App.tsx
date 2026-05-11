@@ -117,7 +117,7 @@ export default function App() {
     async (x: number, y: number) => {
       if (!state) return;
       try {
-        const res = await fetch("/game/action", {
+        const res = await fetch("/game/player-action", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -126,9 +126,15 @@ export default function App() {
           }),
         });
         if (!res.ok) throw new Error("Action failed");
-        // SSE 是状态的唯一来源：dungeon 和 player 两个阶段都通过 SSE push
-        // 不使用 HTTP 响应的 state，避免与 SSE 竞争覆盖
-        (await res.json()) as ActionResponse;
+        const data = (await res.json()) as ActionResponse;
+        // 新格子が揭かれて dungeon phase になった場合、すぐに dungeon-advance を呼ぶ
+        if (data.state.phase === "dungeon") {
+          await fetch("/game/dungeon-advance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: state.sessionId }),
+          });
+        }
       } catch (e) {
         setError(String(e));
       }
