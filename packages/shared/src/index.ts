@@ -54,6 +54,12 @@ export interface GameAgent {
   readonly context: AgentMessage[];
 }
 
+/** 单条游戏日志条目，带回合标记 */
+export interface LogEntry {
+  turn: number;
+  message: string;
+}
+
 // ─── Turn phase ──────────────────────────────────────────────────────────────
 
 /** 当前回合所属阵营。"player" 时玩家可操作；"dungeon" 时地下城整体行动（含怪物、机关、环境等所有非玩家元素）。 */
@@ -70,7 +76,7 @@ export interface GameState {
   depth: number;
   player: Player;
   map: GameMap;
-  log: string[];
+  log: LogEntry[];
   /** 本局已创建的 Agent，含完整对话上下文，key = agentName */
   agents: Record<string, GameAgent>;
   /** key = agentName；value = 该 Agent 被玩家揭开时的 state.turn（揭开当回合 dungeon 阶段不行动） */

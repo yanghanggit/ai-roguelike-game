@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { GameState, StartGameResponse, ActionResponse } from "@roguelike/shared";
+import type { GameState, LogEntry, StartGameResponse, ActionResponse } from "@roguelike/shared";
 
 // ─── Top bar ─────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,6 @@ function TopBar({ state, onSettings }: { state: GameState; onSettings: () => voi
       <span>
         HP: {hp}/{maxHp} · ATK: {attack} · DEF: {defense}
       </span>
-      {state.phase === "dungeon" && <span className="phase-indicator">地下城行动中…</span>}
       <button className="settings-btn" onClick={onSettings}>
         设置
       </button>
@@ -20,20 +19,32 @@ function TopBar({ state, onSettings }: { state: GameState; onSettings: () => voi
 
 // ─── Message log ─────────────────────────────────────────────────────────────
 
-function MessageLog({ log }: { log: string[] }) {
+function MessageLog({
+  log,
+  currentTurn,
+  phase,
+}: {
+  log: LogEntry[];
+  currentTurn: number;
+  phase: string;
+}) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messages = log.filter((e) => e.turn === currentTurn).map((e) => e.message);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [log]);
+  }, [log, phase]);
 
   return (
     <div className="message-log">
-      {log.map((msg, i) => (
+      {messages.map((msg, i) => (
         <div key={i} className="log-entry">
           {msg}
         </div>
       ))}
+      {phase === "dungeon" && (
+        <div className="log-entry phase-indicator">地下城行动中…</div>
+      )}
       <div ref={bottomRef} />
     </div>
   );
@@ -180,7 +191,7 @@ export default function App() {
     <div className="game-container">
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       <TopBar state={state} onSettings={() => setShowSettings(true)} />
-      <MessageLog log={state.log} />
+      <MessageLog log={state.log} currentTurn={state.turn} phase={state.phase} />
       <GameMap state={state} onReveal={sendReveal} />
     </div>
   );

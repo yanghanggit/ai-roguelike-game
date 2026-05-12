@@ -6,7 +6,7 @@
  */
 
 import { TileType } from "@roguelike/shared";
-import type { GameMap, GameState, MapSize, Tile } from "@roguelike/shared";
+import type { GameMap, GameState, LogEntry, MapSize, Tile } from "@roguelike/shared";
 import { GameAgent, thinkBatch } from "./ai/index.js";
 import { MOCK_MONSTERS, extractLabel } from "./mock-monsters.js";
 
@@ -100,7 +100,7 @@ export function createInitialState(sessionId: string): GameState {
       xp: 0,
     },
     map,
-    log: ["欢迎来到地牢！"],
+    log: [{ turn: 0, message: "欢迎来到地牢！" }],
     agents: buildAgentsFromMap(map),
     activatedTurns: {},
   };
@@ -169,7 +169,7 @@ export function createDevInitialState(sessionId: string): GameState {
     depth: 1,
     player: { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 },
     map,
-    log: ["【开发模式】固定地图已加载。"],
+    log: [{ turn: 0, message: "【开发模式】固定地图已加载。" }],
     agents: buildAgentsFromMap(map),
     activatedTurns: {},
   };
@@ -197,7 +197,7 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
     const agent = state.agents[tile.agentName];
     if (agent) message = `${message}==>【${extractLabel(agent.name)}】`;
   }
-  state.log = [...state.log, message].slice(-20);
+  state.log = [...state.log, { turn: state.turn, message }];
 
   return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
 }
@@ -256,6 +256,7 @@ export async function triggerAgentThinking(state: GameState): Promise<void> {
     )
     .filter((a) => a.length > 0);
   if (entries.length > 0) {
-    state.log = [...state.log, ...entries].slice(-20);
+    const newEntries: LogEntry[] = entries.map((message) => ({ turn: state.turn, message }));
+    state.log = [...state.log, ...newEntries];
   }
 }

@@ -146,7 +146,7 @@ describe("createInitialState", () => {
   it("初始日志包含欢迎消息", () => {
     const { log } = createInitialState("s1");
     expect(log).toHaveLength(1);
-    expect(log[0]).toBe("欢迎来到地牢！");
+    expect(log[0]!.message).toBe("欢迎来到地牢！");
   });
 
   it("两次调用生成不同的地图（随机性验证）", () => {
@@ -222,14 +222,14 @@ describe("applyReveal", () => {
     expect(state.log.length).toBe(before + 1);
   });
 
-  it("日志最多保留 20 条", () => {
-    // 强制揭开所有 16 格，日志不应超过 20 条
+  it("揭开所有格子后日志完整保留所有条目", () => {
+    // 初始 1 条 + 16 格各 1 条 = 17 条，全部保留不截断
     for (let y = 0; y < state.mapSize; y++) {
       for (let x = 0; x < state.mapSize; x++) {
         applyReveal(state, x, y);
       }
     }
-    expect(state.log.length).toBeLessThanOrEqual(20);
+    expect(state.log.length).toBe(17);
   });
 
   it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
@@ -396,7 +396,7 @@ describe("triggerAgentThinking", () => {
     state.turn = 2;
 
     await triggerAgentThinking(state);
-    expect(state.log[state.log.length - 1]).toBe("骷髅战士：怪物发动攻击！");
+    expect(state.log[state.log.length - 1]!.message).toBe("骷髅战士：怪物发动攻击！");
   });
 
   it("多个 agent 的 AI 行动全部追加到 log", async () => {
@@ -430,11 +430,11 @@ describe("triggerAgentThinking", () => {
     // 两者均在 turn=0 时被激活，需 turn 消进到 1 才能行动
     state.turn = 1;
     await triggerAgentThinking(state);
-    expect(state.log).toContain("骷髅战士：怪物A攻击！");
-    expect(state.log).toContain("测试怪物：怪物B防御！");
+    expect(state.log.map((e) => e.message)).toContain("骷髅战士：怪物A攻击！");
+    expect(state.log.map((e) => e.message)).toContain("测试怪物：怪物B防御！");
   });
 
-  it("log 最多保留 20 条条目", async () => {
+  it("AI 行动内容追加到 log 后总长度增加", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -452,12 +452,11 @@ describe("triggerAgentThinking", () => {
     );
 
     const state = createDevInitialState("s");
-    // 将 log 充居到 19 条
-    state.log = Array.from({ length: 19 }, (_, i) => `旧日志 ${i}`);
     activateAgent(state, "monster-0-1");
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;
+    const logBefore = state.log.length;
     await triggerAgentThinking(state);
-    expect(state.log.length).toBeLessThanOrEqual(20);
+    expect(state.log.length).toBeGreaterThan(logBefore);
   });
 });

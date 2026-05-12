@@ -244,7 +244,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.state.phase).toBe("player");
-    expect(res.body.state.log[res.body.state.log.length - 1]).toContain("我决定攻击玩家！");
+    expect(res.body.state.log[res.body.state.log.length - 1].message).toContain("我决定攻击玩家！");
   });
 
   it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {

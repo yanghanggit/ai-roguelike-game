@@ -109,7 +109,8 @@ app.post("/game/dungeon-advance", async (req, res) => {
 
   await triggerAgentThinking(state);
   state.phase = "player";
-  console.log(`[Dungeon] Advance done — phase → "player", log[-1]="${state.log.at(-1)}"`);
+  console.log(`[Dungeon] Advance done — phase → "player", log[-1]="${state.log.at(-1)?.message}"`);
+
   pushStateToClients(sessionId, state);
   res.json({ state } satisfies ActionResponse);
 });

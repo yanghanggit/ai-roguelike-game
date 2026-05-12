@@ -81,7 +81,7 @@ function printPlayer(state: GameState): void {
 
 function printLog(state: GameState): void {
   console.log("\n最近日志：");
-  state.log.slice(-5).forEach((msg) => console.log(`  ${msg}`));
+  state.log.slice(-5).forEach((entry) => console.log(`  ${entry.message}`));
 }
 
 function printUnrevealed(state: GameState): void {
