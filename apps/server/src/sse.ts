@@ -5,6 +5,14 @@ import type { GameState } from "@roguelike/shared";
 
 const sseClients = new Map<string, Set<Response>>();
 
+/**
+ * 向指定 session 的所有已连接 SSE 客户端推送最新游戏状态。
+ *
+ * 若该 session 当前无订阅者则跳过推送并打印日志。
+ *
+ * @param sessionId - 目标游戏会话的唯一标识符。
+ * @param state - 要推送的最新 `GameState`，序列化为 SSE `data:` 帧。
+ */
 export function pushStateToClients(sessionId: string, state: GameState): void {
   const clients = sseClients.get(sessionId);
   if (!clients || clients.size === 0) {
@@ -24,6 +32,15 @@ export function pushStateToClients(sessionId: string, state: GameState): void {
   console.log(`[SSE] ✓ wrote to ${written} client(s)`);
 }
 
+/**
+ * 在 Express 应用上注册 `GET /game/events/:sessionId` SSE 路由。
+ *
+ * 客户端连接后立即推送一次当前状态（catch-up push），防止连接建立前已发生的状态更新丢失。
+ * 连接断开时自动从订阅者集合中移除；集合清空后删除对应 session 条目。
+ *
+ * @param app - Express 应用实例。
+ * @param sessions - 全局 session 存储，用于校验 session 是否存在及获取当前状态。
+ */
 export function registerSseRoute(app: Express, sessions: Map<string, GameState>): void {
   app.get("/game/events/:sessionId", (req, res) => {
     const { sessionId } = req.params as { sessionId: string };

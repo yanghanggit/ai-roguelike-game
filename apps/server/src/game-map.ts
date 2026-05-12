@@ -1,7 +1,7 @@
 /**
- * 地图生成层
+ * 地图生成层。
  *
- * 负责：地图瓦片定义、随机地图生成、固定开发地图生成。
+ * 提供瓦片字符映射、随机地图生成与固定开发地图生成。
  * 无副作用，无外部状态依赖。
  */
 
@@ -51,6 +51,15 @@ function weightedRandom(): TileType {
   return TileType.Floor;
 }
 
+/**
+ * 生成指定尺寸的随机地图。
+ *
+ * 保证包含至少一个入口（3×3 地图 1 个，4×4 地图 2 个），
+ * 其余格子按权重随机分配，Monster 格子自动赋予 `agentName`。
+ *
+ * @param size - 地图边长，支持 `3` 或 `4`。
+ * @returns 尺寸为 `size × size` 的二维 `Tile` 数组，所有格子初始为未揭开状态。
+ */
 export function createRandomMap(size: MapSize): GameMap {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;

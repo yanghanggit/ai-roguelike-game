@@ -182,13 +182,19 @@ export class DeepSeekClient {
     return key;
   }
 
-  /** 启动时快速失败校验 — 仅校验，不存储 */
+  /**
+   * 启动时快速失败校验，仅检查 API Key 是否存在，不存储。
+   * @throws 若 `DEEPSEEK_API_KEY` 环境变量未设置。
+   */
   static setup(): void {
     DeepSeekClient.getApiKey();
     console.log(`[DeepSeekClient] initialized, endpoint: ${DEEPSEEK_API_URL}`);
   }
 
-  /** 列出 DeepSeek 平台当前可用的模型 ID */
+  /**
+   * 列出 DeepSeek 平台当前可用的模型 ID。
+   * @returns 模型 ID 数组；请求失败时返回空数组。
+   */
   static async listModels(): Promise<string[]> {
     try {
       const res = await fetch(DEEPSEEK_MODELS_URL, {
@@ -209,7 +215,10 @@ export class DeepSeekClient {
     }
   }
 
-  /** 查询账户余额 */
+  /**
+   * 查询账户余额。
+   * @returns 余额信息对象；请求失败时返回空对象。
+   */
   static async getBalance(): Promise<Record<string, unknown>> {
     try {
       const res = await fetch(DEEPSEEK_BALANCE_URL, {
@@ -229,7 +238,10 @@ export class DeepSeekClient {
     }
   }
 
-  /** 批量并发发送聊天请求（对应 Python batch_chat） */
+  /**
+   * 批量并发发送聊天请求（对应 Python `batch_chat`）。
+   * @param clients - 待并发执行的客户端实例列表；为空时立即返回。
+   */
   static async batchChat(clients: DeepSeekClient[]): Promise<void> {
     if (clients.length === 0) return;
 
@@ -255,7 +267,10 @@ export class DeepSeekClient {
 
   // ─── Instance methods ────────────────────────────────────────────────────────
 
-  /** 发送聊天请求（原生 fetch） */
+  /**
+   * 发送聊天请求（原生 fetch），结果写入 `responseAiMessage`。
+   * 内部捕获所有异常并以 `console.error` 记录，不向外抛出。
+   */
   async chat(): Promise<void> {
     console.debug(`[${this._name}] request prompt:\n${this._prompt}`);
     const start = Date.now();

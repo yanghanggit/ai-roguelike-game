@@ -1,8 +1,7 @@
 /**
- * 纯游戏逻辑层（无 HTTP 依赖）
+ * 纯游戏逻辑层（无 HTTP 依赖）。
  *
- * 负责：初始状态创建、游戏动作处理、JSON 持久化。
- * 可被 Express 路由和独立脚本共同引用。
+ * 负责初始状态创建，可被 Express 路由和独立脚本共同引用。
  */
 
 import { TileType } from "@roguelike/shared";
@@ -12,6 +11,16 @@ import { MOCK_MONSTERS, extractLabel } from "./mock-monsters.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
+/**
+ * 创建初始游戏状态。
+ *
+ * 遍历地图扫描 Monster 格子，为每个怪物从 `MOCK_MONSTERS` 中分配模板并初始化对应 `GameAgent`。
+ *
+ * @param sessionId - 当前游戏会话的唯一标识符。
+ * @param map - 已生成的地图，函数会直接修改其中 Monster 格子的 `glyph`。
+ * @param player - 玩家初始属性对象，直接存入状态不做拷贝。
+ * @returns 完整的初始 `GameState`，`turn` 为 0，`log` 为空数组。
+ */
 export function createInitialState(sessionId: string, map: GameMap, player: Player): GameState {
   const mapSize = map.length as MapSize;
 

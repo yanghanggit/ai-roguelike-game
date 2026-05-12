@@ -1,8 +1,8 @@
 /**
- * 游戏动作层
+ * 游戏动作层。
  *
- * 负责：格子揭开、agent 激活、agent 批量推理。
- * 包含与 AI 交互的 think / thinkBatch 函数。
+ * 负责格子揭开、agent 激活与批量 AI 推理。
+ * 包含与 AI 后端通信的 `think` / `thinkBatch` 辅助函数。
  */
 
 import { TileType } from "@roguelike/shared";
@@ -18,17 +18,23 @@ import { LOG_MESSAGES } from "./game-map.js";
 export interface ApplyRevealResult {
   ok: boolean;
   error?: string;
-  /** 本次揭开的格子类型（ok 为 true 时有值） */
+  /** 本次揭开的格子类型（`ok` 为 `true` 时有值）。 */
   tileType?: TileType;
-  /** 本次追加的日志消息（ok 为 true 且格子未曾揭开时有值） */
+  /** 本回合追加的日志消息（`ok` 为 `true` 且格子首次揭开时有值）。 */
   message?: string;
-  /** Monster 格子专用：对应 GameAgent 的 name，供调用方激活 agent */
+  /** Monster 格子专用：关联的 `GameAgent` 名称，供调用方激活对应 agent。 */
   agentName?: string;
 }
 
 /**
- * 对 state 执行 reveal 动作（直接 mutate）。
- * 若格子已揭开，返回 ok:true 但不更新状态。
+ * 对 `state` 执行揭开动作（直接修改原对象）。
+ *
+ * 若格子已揭开，返回 `ok: true` 但不更新状态。
+ *
+ * @param state - 当前游戏状态（会被直接修改）。
+ * @param x - 目标格子的列坐标（0-based）。
+ * @param y - 目标格子的行坐标（0-based）。
+ * @returns 揭开结果，包含是否成功、格子类型、日志消息及可选的 agentName。
  */
 export function applyReveal(state: GameState, x: number, y: number): ApplyRevealResult {
   const tile = state.map[y]?.[x];
@@ -54,8 +60,12 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
 // ─── Agent activation ─────────────────────────────────────────────────────────
 
 /**
- * 将指定 agentName 的 GameAgent 激活（翻转 activated: true）。
- * 要求 agent 已在 state.agents 中预存在（地图创建时建立）。
+ * 将指定 agent 标记为已激活，并记录激活时的回合数。
+ *
+ * agent 必须已预存在 `state.agents` 中（地图创建时写入）。
+ *
+ * @param state - 当前游戏状态（会被直接修改）。
+ * @param agentName - 要激活的 agent 名称，需与 `state.agents` 中的键一致。
  */
 export function activateAgent(state: GameState, agentName: string): void {
   const agent = state.agents[agentName];
@@ -69,11 +79,15 @@ export function activateAgent(state: GameState, agentName: string): void {
 // ─── AI think ────────────────────────────────────────────────────────────────
 
 /**
- * 将 agent 的当前上下文连同本轮感知输入发往 DeepSeek，
- * 把这一轮的 HumanMessage + AIMessage 追加进 agent.context，
- * 返回 AI 的行动描述字符串。
+ * 将 agent 当前上下文与本轮感知输入发往 DeepSeek，
+ * 把产生的 `HumanMessage` + `AIMessage` 追加至 `agent.context`，
+ * 并返回 AI 的行动描述字符串。
  *
- * 失败时返回空字符串（游戏容错优先，本回合该实体跳过行动）。
+ * 失败时返回空字符串——游戏逻辑优先容错，本回合该实体跳过行动。
+ *
+ * @param agent - 执行推理的 agent，其 `context` 会被追加本轮消息。
+ * @param perception - 本回合传入 AI 的感知描述文本。
+ * @returns AI 输出的行动描述；失败时为空字符串。
  */
 export async function think(agent: GameAgent, perception: string): Promise<string> {
   const client = new DeepSeekClient({
@@ -93,9 +107,14 @@ export async function think(agent: GameAgent, perception: string): Promise<strin
 }
 
 /**
- * 同一回合内让多个 agent 并发思考，复用 DeepSeekClient.batchChat() 的并发逻辑。
- * agents[i] 对应 perceptions[i]，返回的字符串数组顺序与输入一致。
- * 若 agents 与 perceptions 长度不一致则抛出错误（调用方问题，快速失败）。
+ * 在同一回合内并发执行多个 agent 的推理，委托给 `DeepSeekClient.batchChat()`。
+ *
+ * `agents[i]` 对应 `perceptions[i]`，返回数组顺序与输入一致。
+ * 两数组长度不一致时抛出错误（属调用方问题，快速失败）。
+ *
+ * @param agents - 参与本轮推理的 agent 列表，顺序与 `perceptions` 对应。
+ * @param perceptions - 各 agent 本回合的感知描述文本，顺序与 `agents` 对应。
+ * @returns 与 `agents` 顺序一致的 AI 行动描述数组；单个 agent 失败时对应项为空字符串。
  */
 export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Promise<string[]> {
   if (agents.length !== perceptions.length) {
@@ -127,8 +146,11 @@ export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Pr
 // ─── Agent thinking trigger ──────────────────────────────────────────────────
 
 /**
- * 让 state.agents 中所有已激活的 agent 并发推理一轮，结果追加到 state.log。
- * HTTP 层以 fire-and-forget（void）方式调用；CLI 层 await 阻塞等待。
+ * 对 `state` 中所有已激活的 agent 执行一轮并发推理，结果追加至 `state.log`。
+ *
+ * HTTP 层以 fire-and-forget（`void`）方式调用；CLI 层 `await` 阻塞等待。
+ *
+ * @param state - 当前游戏状态，`activatedTurns` 决定哪些 agent 参与本轮推理。
  */
 export async function triggerAgentThinking(state: GameState): Promise<void> {
   const agentList = Object.keys(state.activatedTurns)
