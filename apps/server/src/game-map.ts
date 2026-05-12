@@ -1,0 +1,120 @@
+/**
+ * 地图生成层
+ *
+ * 负责：地图瓦片定义、随机地图生成、固定开发地图生成。
+ * 无副作用，无外部状态依赖。
+ */
+
+import { TileType } from "@roguelike/shared";
+import type { GameMap, MapSize, Tile } from "@roguelike/shared";
+
+// ─── Glyphs & weights ─────────────────────────────────────────────────────────
+
+export const GLYPHS: Record<TileType, string> = {
+  [TileType.Floor]: ".",
+  [TileType.Wall]: "#",
+  [TileType.Entrance]: ">",
+  [TileType.Monster]: "E",
+  [TileType.Treasure]: "$",
+  [TileType.Item]: "!",
+  [TileType.Special]: "?",
+};
+
+const WEIGHTS: [TileType, number][] = [
+  [TileType.Floor, 40],
+  [TileType.Wall, 20],
+  [TileType.Monster, 20],
+  [TileType.Treasure, 10],
+  [TileType.Item, 5],
+  [TileType.Special, 5],
+];
+
+export const LOG_MESSAGES: Record<TileType, string> = {
+  [TileType.Floor]: "地面空无一物。",
+  [TileType.Wall]: "坚固的墙壁挡住了去路。",
+  [TileType.Entrance]: "通往下一层的入口！",
+  [TileType.Monster]: "一只怪物潜伏于此！",
+  [TileType.Treasure]: "一个宝箱在闪闪发光！",
+  [TileType.Item]: "你发现了一件物品！",
+  [TileType.Special]: "有些不寻常的东西在涌动……",
+};
+
+// ─── Map generation ───────────────────────────────────────────────────────────
+
+function weightedRandom(): TileType {
+  const rand = Math.random() * 100;
+  let cumulative = 0;
+  for (const [type, weight] of WEIGHTS) {
+    cumulative += weight;
+    if (rand < cumulative) return type;
+  }
+  return TileType.Floor;
+}
+
+export function createRandomMap(size: MapSize): GameMap {
+  const total = size * size;
+  const entranceCount = size === 3 ? 1 : 2;
+
+  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => TileType.Entrance);
+  for (let i = entranceCount; i < total; i++) pool.push(weightedRandom());
+
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
+
+  const map: GameMap = [];
+  for (let y = 0; y < size; y++) {
+    const row: Tile[] = [];
+    for (let x = 0; x < size; x++) {
+      const type = pool[y * size + x]!;
+      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
+      if (type === TileType.Monster) {
+        tile.agentName = `monster-${x}-${y}`;
+      }
+      row.push(tile);
+    }
+    map.push(row);
+  }
+  return map;
+}
+
+/**
+ * 固定布局的 4×4 开发地图，所有元素坐标确定，便于测试与调试。
+ *
+ * 布局（x 为列，y 为行）：
+ *
+ *      x=0        x=1       x=2        x=3
+ * y=0  入口 >     地板 ·    墙壁 #     地板 ·
+ * y=1  怪物 E     地板 ·    地板 ·     宝箱 $
+ * y=2  地板 ·     物品 !    墙壁 #     地板 ·
+ * y=3  地板 ·     地板 ·    地板 ·     特殊 ?
+ *
+ * 各元素唯一坐标：
+ *   Entrance  (0,0)
+ *   Monster   (0,1)  → agentName = "monster-0-1"
+ *   Treasure  (3,1)
+ *   Item      (1,2)
+ *   Special   (3,3)
+ *   Wall      (2,0), (2,2)
+ *   Floor     其余 9 格
+ */
+export function createDevMap(): GameMap {
+  const layout: TileType[][] = [
+    [TileType.Entrance, TileType.Floor, TileType.Wall, TileType.Floor],
+    [TileType.Monster, TileType.Floor, TileType.Floor, TileType.Treasure],
+    [TileType.Floor, TileType.Item, TileType.Wall, TileType.Floor],
+    [TileType.Floor, TileType.Floor, TileType.Floor, TileType.Special],
+  ];
+
+  return layout.map((row, y) =>
+    row.map((type, x) => {
+      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
+      if (type === TileType.Monster) {
+        tile.agentName = `monster-${x}-${y}`;
+      }
+      return tile;
+    }),
+  );
+}

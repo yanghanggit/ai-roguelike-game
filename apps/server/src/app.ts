@@ -7,15 +7,11 @@ import type {
   ActionResponse,
 } from "@roguelike/shared";
 import { pushStateToClients, registerSseRoute } from "./sse.js";
-import {
-  createRandomMap,
-  createInitialState,
-  applyReveal,
-  activateAgent,
-  triggerAgentThinking,
-} from "./game.js";
+import { createRandomMap } from "./game-map.js";
+import { createInitialState } from "./game.js";
+import { applyReveal, activateAgent, triggerAgentThinking } from "./game-actions.js";
 
-export { createRandomMap as createMap } from "./game.js";
+export { createRandomMap as createMap } from "./game-map.js";
 
 export const app = express();
 
@@ -34,7 +30,14 @@ app.get("/health", (_req, res) => {
 
 app.post("/game/start", (_req, res) => {
   const sessionId = crypto.randomUUID();
-  const state = createInitialState(sessionId);
+  const state = createInitialState(sessionId, createRandomMap(4), {
+    hp: 20,
+    maxHp: 20,
+    attack: 5,
+    defense: 2,
+    level: 1,
+    xp: 0,
+  });
   sessions.set(sessionId, state);
 
   const response: StartGameResponse = { sessionId, state };

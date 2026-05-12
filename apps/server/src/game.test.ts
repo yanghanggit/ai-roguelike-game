@@ -3,17 +3,12 @@ import * as path from "node:path";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
-import {
-  GLYPHS,
-  LOG_MESSAGES,
-  createRandomMap,
-  createInitialState,
-  createDevInitialState,
-  applyReveal,
-  activateAgent,
-  triggerAgentThinking,
-} from "./game.js";
+import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
+import { createInitialState } from "./game.js";
+import { applyReveal, activateAgent, triggerAgentThinking } from "./game-actions.js";
 import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
+
+const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
 
 // ─── GLYPHS ───────────────────────────────────────────────────────────────────
 
@@ -117,41 +112,34 @@ describe("createMap", () => {
 
 describe("createInitialState", () => {
   it("sessionId 被正确赋值", () => {
-    const state = createInitialState("abc-123");
+    const state = createInitialState("abc-123", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.sessionId).toBe("abc-123");
   });
 
-  it("初始 turn=0、depth=1、phase=player", () => {
-    const state = createInitialState("s1");
+  it("初始 turn=0、phase=player", () => {
+    const state = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.turn).toBe(0);
-    expect(state.depth).toBe(1);
     expect(state.phase).toBe("player");
   });
 
   it("mapSize 为 4", () => {
-    const state = createInitialState("s1");
+    const state = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.mapSize).toBe(4);
   });
 
-  it("玩家初始属性正确", () => {
-    const { player } = createInitialState("s1");
-    expect(player.hp).toBe(20);
-    expect(player.maxHp).toBe(20);
-    expect(player.attack).toBe(5);
-    expect(player.defense).toBe(2);
-    expect(player.level).toBe(1);
-    expect(player.xp).toBe(0);
+  it("玩家初始属性与传入一致", () => {
+    const { player } = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    expect(player).toEqual(DEFAULT_PLAYER);
   });
 
-  it("初始日志包含欢迎消息", () => {
-    const { log } = createInitialState("s1");
-    expect(log).toHaveLength(1);
-    expect(log[0]!.message).toBe("欢迎来到地牢！");
+  it("初始日志为空", () => {
+    const { log } = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    expect(log).toHaveLength(0);
   });
 
   it("两次调用生成不同的地图（随机性验证）", () => {
-    const s1 = createInitialState("a");
-    const s2 = createInitialState("b");
+    const s1 = createInitialState("a", createRandomMap(4), DEFAULT_PLAYER);
+    const s2 = createInitialState("b", createRandomMap(4), DEFAULT_PLAYER);
     // 有极低概率两张地图完全相同，但 16 格分布几乎不可能
     const types1 = s1.map
       .flat()
@@ -171,7 +159,7 @@ describe("applyReveal", () => {
   let state: ReturnType<typeof createInitialState>;
 
   beforeEach(() => {
-    state = createInitialState("test-session");
+    state = createInitialState("test-session", createRandomMap(4), DEFAULT_PLAYER);
   });
 
   it("揭开未揭格子：ok=true，tileType 有值，message 有值", () => {
@@ -223,13 +211,13 @@ describe("applyReveal", () => {
   });
 
   it("揭开所有格子后日志完整保留所有条目", () => {
-    // 初始 1 条 + 16 格各 1 条 = 17 条，全部保留不截断
+    // 初始 0 条 + 16 格各 1 条 = 16 条，全部保留不截断
     for (let y = 0; y < state.mapSize; y++) {
       for (let x = 0; x < state.mapSize; x++) {
         applyReveal(state, x, y);
       }
     }
-    expect(state.log.length).toBe(17);
+    expect(state.log.length).toBe(16);
   });
 
   it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
@@ -267,14 +255,14 @@ describe("JSON persistence", () => {
   });
 
   it("saveGameState 写入文件并返回路径，路径包含时间戳前缀", () => {
-    const state = createInitialState("persist-1");
+    const state = createInitialState("persist-1", createRandomMap(4), DEFAULT_PLAYER);
     const filePath = saveGameState(state, tmpDir);
     expect(fse.existsSync(filePath)).toBe(true);
     expect(path.basename(filePath)).toMatch(/^game-state-.*\.json$/);
   });
 
   it("loadGameState 能从路径还原 GameState", () => {
-    const state = createInitialState("persist-2");
+    const state = createInitialState("persist-2", createRandomMap(4), DEFAULT_PLAYER);
     const filePath = saveGameState(state, tmpDir);
     const loaded = loadGameState(filePath);
     expect(loaded.sessionId).toBe("persist-2");
@@ -283,7 +271,7 @@ describe("JSON persistence", () => {
   });
 
   it("保存后再修改状态，loadGameState 读出的仍是保存时的快照", () => {
-    const state = createInitialState("snapshot-test");
+    const state = createInitialState("snapshot-test", createRandomMap(4), DEFAULT_PLAYER);
     const filePath = saveGameState(state, tmpDir);
     applyReveal(state, 0, 0); // 修改内存中的 state
     const loaded = loadGameState(filePath);
@@ -291,8 +279,8 @@ describe("JSON persistence", () => {
   });
 
   it("loadLatestGameState 读取最新文件", async () => {
-    const s1 = createInitialState("first");
-    const s2 = createInitialState("second");
+    const s1 = createInitialState("first", createRandomMap(4), DEFAULT_PLAYER);
+    const s2 = createInitialState("second", createRandomMap(4), DEFAULT_PLAYER);
     saveGameState(s1, tmpDir);
     // 保证时间戳不同（文件名毫秒级）
     await new Promise((r) => setTimeout(r, 5));
@@ -307,13 +295,13 @@ describe("JSON persistence", () => {
 
   it("saveGameState 若目录不存在则自动创建", () => {
     const nestedDir = path.join(tmpDir, "deep", "nested");
-    const state = createInitialState("nested");
+    const state = createInitialState("nested", createRandomMap(4), DEFAULT_PLAYER);
     saveGameState(state, nestedDir);
     expect(fse.readdirSync(nestedDir).length).toBeGreaterThan(0);
   });
 
   it("多次 save 产生多个文件", async () => {
-    const state = createInitialState("multi");
+    const state = createInitialState("multi", createRandomMap(4), DEFAULT_PLAYER);
     saveGameState(state, tmpDir);
     await new Promise((r) => setTimeout(r, 5));
     applyReveal(state, 0, 0);
@@ -327,7 +315,7 @@ describe("JSON persistence", () => {
 
 describe("activateMonsterAgent", () => {
   it("将指定 agentName 的 GameAgent 设为 激活", () => {
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
     expect(state.activatedTurns["monster-0-1"]).toBeUndefined();
     activateAgent(state, "monster-0-1");
@@ -335,7 +323,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     const countBefore = Object.keys(state.agents).length;
     activateAgent(state, "monster-0-1");
     activateAgent(state, "monster-0-1");
@@ -344,7 +332,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
     expect(Object.keys(state.activatedTurns)).toHaveLength(0);
@@ -364,7 +352,7 @@ describe("triggerAgentThinking", () => {
   });
 
   it("agents 均未激活时什么都不做，log 不变", async () => {
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
     await triggerAgentThinking(state);
@@ -388,7 +376,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
     activateAgent(state, "monster-0-1");
@@ -421,7 +409,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
@@ -451,7 +439,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createDevInitialState("s");
+    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;

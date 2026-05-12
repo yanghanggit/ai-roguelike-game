@@ -70,16 +70,12 @@ export type TurnPhase = "player" | "dungeon";
 export interface GameState {
   sessionId: string;
   turn: number;
-  /** 当前回合阶段：玩家操作阶段 or 敌人行动阶段 */
   phase: TurnPhase;
   mapSize: MapSize;
-  depth: number;
   player: Player;
   map: GameMap;
   log: LogEntry[];
-  /** 本局已创建的 Agent，含完整对话上下文，key = agentName */
   agents: Record<string, GameAgent>;
-  /** key = agentName；value = 该 Agent 被玩家揭开时的 state.turn（揭开当回合 dungeon 阶段不行动） */
   activatedTurns: Record<string, number>;
 }
 

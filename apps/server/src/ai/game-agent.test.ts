@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { GameAgent, think, thinkBatch } from "./game-agent.js";
+import { GameAgent } from "./game-agent.js";
+import { think, thinkBatch } from "../game-actions.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

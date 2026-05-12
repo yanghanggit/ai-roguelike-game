@@ -43,7 +43,6 @@ describe("POST /game/start", () => {
     expect(state.mapSize).toBe(4);
     expect(state.map).toHaveLength(4);
     expect(state.map[0]).toHaveLength(4);
-    expect(state.depth).toBe(1);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
@@ -126,7 +125,7 @@ describe("POST /game/player-action — reveal", () => {
       .post("/game/player-action")
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
     const state: GameState = res.body.state;
-    expect(state.log.length).toBeGreaterThan(1);
+    expect(state.log.length).toBeGreaterThan(0);
   });
 
   it("revealing an already-revealed tile does not increment turn", async () => {

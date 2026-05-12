@@ -17,14 +17,9 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import {
-  createInitialState,
-  createDevInitialState,
-  applyReveal,
-  activateAgent,
-  triggerAgentThinking,
-  GLYPHS,
-} from "../src/game.js";
+import { GLYPHS, createDevMap, createRandomMap } from "../src/game-map.js";
+import { createInitialState } from "../src/game.js";
+import { applyReveal, activateAgent, triggerAgentThinking } from "../src/game-actions.js";
 import { saveGameState, loadLatestGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
 
@@ -48,7 +43,7 @@ const logger = pino({
 
 function printMap(state: GameState): void {
   const size = state.mapSize;
-  console.log(`\n地图 ${size}×${size}  （第 ${state.depth} 层 · 第 ${state.turn} 回合）`);
+  console.log(`\n地图 ${size}×${size}  （第 ${state.turn} 回合）`);
 
   // 列坐标头
   console.log("    " + Array.from({ length: size }, (_, x) => ` ${x}`).join(""));
@@ -110,7 +105,14 @@ program
   .description("创建随机新游戏，保存存档到 saves/")
   .action(() => {
     const sessionId = crypto.randomUUID();
-    const state = createInitialState(sessionId);
+    const state = createInitialState(sessionId, createRandomMap(4), {
+      hp: 20,
+      maxHp: 20,
+      attack: 5,
+      defense: 2,
+      level: 1,
+      xp: 0,
+    });
     const savedPath = saveGameState(state, SAVES_DIR);
 
     logger.info({ sessionId, savedPath }, "新游戏已创建");
@@ -126,7 +128,14 @@ program
   .description("创建固定布局开发地图（元素位置确定，便于测试与调试）")
   .action(() => {
     const sessionId = crypto.randomUUID();
-    const state = createDevInitialState(sessionId);
+    const state = createInitialState(sessionId, createDevMap(), {
+      hp: 20,
+      maxHp: 20,
+      attack: 5,
+      defense: 2,
+      level: 1,
+      xp: 0,
+    });
     const savedPath = saveGameState(state, SAVES_DIR);
 
     logger.info({ sessionId, savedPath }, "【开发模式】固定地图已创建");

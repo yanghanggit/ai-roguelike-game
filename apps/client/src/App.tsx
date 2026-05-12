@@ -42,9 +42,7 @@ function MessageLog({
           {msg}
         </div>
       ))}
-      {phase === "dungeon" && (
-        <div className="log-entry phase-indicator">地下城行动中…</div>
-      )}
+      {phase === "dungeon" && <div className="log-entry phase-indicator">地下城行动中…</div>}
       <div ref={bottomRef} />
     </div>
   );
