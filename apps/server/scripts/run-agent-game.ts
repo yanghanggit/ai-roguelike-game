@@ -43,40 +43,40 @@ const logger = pino({
 
 function printMap(state: GameState): void {
   const size = state.mapSize;
-  console.log(`\n地图 ${size}×${size}  （第 ${state.turn} 回合）`);
+  logger.info(`\n地图 ${size}×${size}  （第 ${state.turn} 回合）`);
 
   // 列坐标头
-  console.log("    " + Array.from({ length: size }, (_, x) => ` ${x}`).join(""));
-  console.log("   +" + "──".repeat(size) + "+");
+  logger.info("    " + Array.from({ length: size }, (_, x) => ` ${x}`).join(""));
+  logger.info("   +" + "──".repeat(size) + "+");
 
   for (let y = 0; y < size; y++) {
     const row = state.map[y]!;
     const cells = row.map((tile) => (tile.revealed ? ` ${tile.glyph}` : " ?")).join("");
-    console.log(` ${y} │${cells} │`);
+    logger.info(` ${y} │${cells} │`);
   }
-  console.log("   +" + "──".repeat(size) + "+");
+  logger.info("   +" + "──".repeat(size) + "+");
 
   // 图例
-  console.log(
+  logger.info(
     "\n图例：" +
       Object.entries(GLYPHS)
         .map(([, g]) => g)
         .join(" ") +
       "   ? = 未揭开",
   );
-  console.log("  . 地板  # 墙  > 入口  E:名称 怪物  $ 宝箱  ! 物品  ? 特殊\n");
+  logger.info("  . 地板  # 墙  > 入口  E:名称 怪物  $ 宝箱  ! 物品  ? 特殊\n");
 }
 
 function printPlayer(state: GameState): void {
   const p = state.player;
-  console.log(
+  logger.info(
     `玩家状态：HP ${p.hp}/${p.maxHp} · ATK ${p.attack} · DEF ${p.defense} · Lv ${p.level} · XP ${p.xp}`,
   );
 }
 
 function printLog(state: GameState): void {
-  console.log("\n最近日志：");
-  state.log.slice(-5).forEach((entry) => console.log(`  ${entry.message}`));
+  logger.info("\n最近日志：");
+  state.log.slice(-5).forEach((entry) => logger.info(`  ${entry.message}`));
 }
 
 function printUnrevealed(state: GameState): void {
@@ -86,7 +86,7 @@ function printUnrevealed(state: GameState): void {
       if (!tile.revealed) unrevealed.push(`(${x},${y})`);
     });
   });
-  console.log(`\n未揭开格子 [${unrevealed.length}]：${unrevealed.join("  ")}`);
+  logger.info(`\n未揭开格子 [${unrevealed.length}]：${unrevealed.join("  ")}`);
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ program
 
     const total = state.mapSize * state.mapSize;
     const revealed = state.map.flat().filter((t) => t.revealed).length;
-    console.log(`\n进度：${revealed}/${total} 格已揭开`);
+    logger.info(`\n进度：${revealed}/${total} 格已揭开`);
   });
 
 // ─── reveal ───────────────────────────────────────────────────────────────────
@@ -212,9 +212,9 @@ program
     logger.info({ x, y, tileType: result.tileType, savedPath }, "格子已揭开");
 
     if (result.message) {
-      console.log(`✓ (${x},${y})：${result.tileType}  →  ${result.message}`);
+      logger.info(`✓ (${x},${y})：${result.tileType}  →  ${result.message}`);
     } else {
-      console.log(`  (${x},${y}) 已揭开，无变化`);
+      logger.info(`  (${x},${y}) 已揭开，无变化`);
     }
 
     printMap(state);
@@ -223,10 +223,10 @@ program
 
     const total = state.mapSize * state.mapSize;
     const revealed = state.map.flat().filter((t) => t.revealed).length;
-    console.log(`\n进度：${revealed}/${total} 格已揭开`);
+    logger.info(`\n进度：${revealed}/${total} 格已揭开`);
 
     if (revealed === total) {
-      console.log("\n🎉 所有格子已揭开！游戏结束。");
+      logger.info("\n🎉 所有格子已揭开！游戏结束。");
     }
   });
 

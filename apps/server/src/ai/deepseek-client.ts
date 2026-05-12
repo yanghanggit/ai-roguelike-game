@@ -19,6 +19,9 @@ import {
   MODEL_FLASH,
 } from "./config.js";
 import { type AIMessage, type BaseMessage, aiMessage } from "./messages.js";
+import { logger } from "../logger.js";
+
+const log = logger.child({ module: "DeepSeekClient" });
 
 // ─── Role mapping ─────────────────────────────────────────────────────────────
 
@@ -141,7 +144,7 @@ export class DeepSeekClient {
     this._temperature = temperature;
 
     if (context.length === 0) {
-      console.warn(`[${this._name}] context is empty`);
+      log.warn({ name }, "context is empty");
     }
   }
 
@@ -188,7 +191,7 @@ export class DeepSeekClient {
    */
   static setup(): void {
     DeepSeekClient.getApiKey();
-    console.log(`[DeepSeekClient] initialized, endpoint: ${DEEPSEEK_API_URL}`);
+    log.info({ endpoint: DEEPSEEK_API_URL }, "DeepSeekClient initialized");
   }
 
   /**
@@ -204,13 +207,13 @@ export class DeepSeekClient {
       if (res.ok) {
         const data = (await res.json()) as DeepSeekModelsResponse;
         const ids = data.data.map((m) => m.id);
-        console.log(`[DeepSeekClient] listModels: ${ids.join(", ")}`);
+        log.info({ models: ids }, "listModels");
         return ids;
       }
-      console.error(`[DeepSeekClient] listModels failed (${res.status}): ${await res.text()}`);
+      log.error({ status: res.status, body: await res.text() }, "listModels failed");
       return [];
     } catch (e) {
-      console.error(`[DeepSeekClient] listModels error: ${String(e)}`);
+      log.error({ err: e }, "listModels error");
       return [];
     }
   }
@@ -227,13 +230,13 @@ export class DeepSeekClient {
       });
       if (res.ok) {
         const data = (await res.json()) as Record<string, unknown>;
-        console.log(`[DeepSeekClient] getBalance: ${JSON.stringify(data)}`);
+        log.info({ balance: data }, "getBalance");
         return data;
       }
-      console.error(`[DeepSeekClient] getBalance failed (${res.status}): ${await res.text()}`);
+      log.error({ status: res.status, body: await res.text() }, "getBalance failed");
       return {};
     } catch (e) {
-      console.error(`[DeepSeekClient] getBalance error: ${String(e)}`);
+      log.error({ err: e }, "getBalance error");
       return {};
     }
   }
@@ -253,15 +256,16 @@ export class DeepSeekClient {
     failed.forEach((r, i) => {
       const name = clients[i]?.name ?? "unknown";
       const reason = r.status === "rejected" ? String(r.reason) : "";
-      console.error(`[DeepSeekClient] batchChat '${name}' failed: ${reason}`);
+      log.error({ name, reason }, "batchChat: individual request failed");
     });
 
     if (failed.length > 0) {
-      console.warn(
-        `[DeepSeekClient] batchChat: ${failed.length}/${clients.length} failed (${elapsed}s)`,
+      log.warn(
+        { failed: failed.length, total: clients.length, elapsed },
+        "batchChat: some requests failed",
       );
     } else {
-      console.log(`[DeepSeekClient] batchChat: all ${clients.length} succeeded (${elapsed}s)`);
+      log.info({ total: clients.length, elapsed }, "batchChat: all succeeded");
     }
   }
 
@@ -272,7 +276,7 @@ export class DeepSeekClient {
    * 内部捕获所有异常并以 `console.error` 记录，不向外抛出。
    */
   async chat(): Promise<void> {
-    console.debug(`[${this._name}] request prompt:\n${this._prompt}`);
+    log.debug({ name: this._name, prompt: this._prompt }, "request prompt");
     const start = Date.now();
 
     try {
@@ -284,18 +288,22 @@ export class DeepSeekClient {
       });
 
       const elapsed = ((Date.now() - start) / 1000).toFixed(2);
-      console.debug(`[${this._name}] request time: ${elapsed}s`);
+      log.debug({ name: this._name, elapsed }, "request time");
 
       if (res.ok) {
         const data = (await res.json()) as DeepSeekResponse;
         this.parseResponse(data);
-        console.log(`[${this._name}] responseContent:\n${this.responseContent}`);
-        console.debug(
-          `[${this._name}] cache: hit=${this._promptCacheHitTokens}, miss=${this._promptCacheMissTokens}`,
+        log.info({ name: this._name, response: this.responseContent }, "responseContent");
+        log.debug(
+          {
+            name: this._name,
+            cacheHit: this._promptCacheHitTokens,
+            cacheMiss: this._promptCacheMissTokens,
+          },
+          "cache stats",
         );
         if (this.responseReasoningContent) {
-          console.log(`\n💭 [${this._name}] 思考过程:\n${this.responseReasoningContent}\n`);
-          console.log("=".repeat(60));
+          log.info({ name: this._name, reasoning: this.responseReasoningContent }, "reasoning");
         }
       } else {
         const text = await res.text();
@@ -303,11 +311,11 @@ export class DeepSeekClient {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "TimeoutError") {
-        console.error(`[${this._name}] request timeout`);
+        log.error({ name: this._name }, "request timeout");
       } else if (e instanceof TypeError) {
-        console.error(`[${this._name}] connection error: ${String(e)}`);
+        log.error({ name: this._name, err: String(e) }, "connection error");
       } else {
-        console.error(`[${this._name}] unexpected error: ${String(e)}`);
+        log.error({ name: this._name, err: String(e) }, "unexpected error");
       }
     }
   }
@@ -344,7 +352,7 @@ export class DeepSeekClient {
   private parseResponse(data: DeepSeekResponse): void {
     const choices = data.choices;
     if (!choices || choices.length === 0) {
-      console.warn(`[${this._name}] empty choices in response`);
+      log.warn({ name: this._name }, "empty choices in response");
       return;
     }
 
@@ -366,28 +374,28 @@ export class DeepSeekClient {
   private handleErrorResponse(status: number, text: string): void {
     switch (status) {
       case 400:
-        console.error(`[${this._name}] 请求格式错误 (400) — 请检查请求体: ${text}`);
+        log.error({ name: this._name, status, body: text }, "请求格式错误 — 请检查请求体");
         break;
       case 401:
-        console.error(`[${this._name}] 认证失败 (401) — API key 错误，请检查 DEEPSEEK_API_KEY`);
+        log.error({ name: this._name, status }, "认证失败 — API key 错误，请检查 DEEPSEEK_API_KEY");
         break;
       case 402:
-        console.error(`[${this._name}] 余额不足 (402) — 请前往 DeepSeek 平台充值`);
+        log.error({ name: this._name, status }, "余额不足 — 请前往 DeepSeek 平台充值");
         break;
       case 422:
-        console.error(`[${this._name}] 参数错误 (422) — 请检查请求参数: ${text}`);
+        log.error({ name: this._name, status, body: text }, "参数错误 — 请检查请求参数");
         break;
       case 429:
-        console.warn(`[${this._name}] 请求速率达到上限 (429) — 请稍后重试`);
+        log.warn({ name: this._name, status }, "请求速率达到上限 — 请稍后重试");
         break;
       case 500:
-        console.error(`[${this._name}] 服务器内部故障 (500) — 请稍后重试`);
+        log.error({ name: this._name, status }, "服务器内部故障 — 请稍后重试");
         break;
       case 503:
-        console.warn(`[${this._name}] 服务器繁忙 (503) — 请稍后重试`);
+        log.warn({ name: this._name, status }, "服务器繁忙 — 请稍后重试");
         break;
       default:
-        console.error(`[${this._name}] 请求失败 (${status}): ${text}`);
+        log.error({ name: this._name, status, body: text }, "请求失败");
     }
   }
 

@@ -12,6 +12,9 @@ import { DeepSeekClient } from "./ai/deepseek-client.js";
 import { humanMessage, aiMessage } from "./ai/messages.js";
 import { extractLabel } from "./mock-monsters.js";
 import { LOG_MESSAGES } from "./game-map.js";
+import { logger } from "./logger.js";
+
+const log = logger.child({ module: "GameActions" });
 
 // ─── Reveal ───────────────────────────────────────────────────────────────────
 
@@ -70,7 +73,7 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
 export function activateAgent(state: GameState, agentName: string): void {
   const agent = state.agents[agentName];
   if (!agent) {
-    console.warn(`[activateMonsterAgent] agent "${agentName}" not found in state.agents`);
+    log.warn({ agentName }, "activateAgent: agent not found in state.agents");
     return;
   }
   state.activatedTurns[agentName] = state.turn;

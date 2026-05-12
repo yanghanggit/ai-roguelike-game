@@ -16,6 +16,9 @@ import { pushStateToClients, registerSseRoute } from "./sse.js";
 import { createRandomMap } from "./game-map.js";
 import { createInitialState } from "./game.js";
 import { applyReveal, activateAgent, triggerAgentThinking } from "./game-actions.js";
+import { logger } from "./logger.js";
+
+const log = logger.child({ module: "Action" });
 
 export { createRandomMap as createMap } from "./game-map.js";
 
@@ -85,20 +88,22 @@ app.post("/game/player-action", (req, res) => {
       // 新格子（怪物或非怪物）：激活 agent（若有），进入 dungeon phase
       if (result.agentName) {
         activateAgent(state, result.agentName);
-        console.log(
-          `[Action] Monster revealed at (${action.x},${action.y}) — agent "${result.agentName}" activated (${Object.keys(state.agents).length} total)`,
+        log.info(
+          {
+            x: action.x,
+            y: action.y,
+            agent: result.agentName,
+            totalAgents: Object.keys(state.agents).length,
+          },
+          "Monster revealed — agent activated",
         );
       }
       state.phase = "dungeon";
-      console.log(
-        `[Action] New tile at (${action.x},${action.y}) — phase → "dungeon" (turn=${state.turn})`,
-      );
+      log.info({ x: action.x, y: action.y, turn: state.turn }, `New tile — phase → "dungeon"`);
       pushStateToClients(sessionId, state);
     } else {
       // 格子已揭开：不改 phase，仍 push 保持 SSE 为唯一状态源
-      console.log(
-        `[Action] Reveal at (${action.x},${action.y}) — already revealed, no phase change`,
-      );
+      log.debug({ x: action.x, y: action.y }, "Reveal — already revealed, no phase change");
       pushStateToClients(sessionId, state);
     }
 
@@ -129,8 +134,10 @@ app.post("/game/dungeon-advance", async (req, res) => {
 
   await triggerAgentThinking(state);
   state.phase = "player";
-  console.log(`[Dungeon] Advance done — phase → "player", log[-1]="${state.log.at(-1)?.message}"`);
-
+  log.info(
+    { turn: state.turn, lastLog: state.log.at(-1)?.message },
+    `Dungeon advance done — phase → "player"`,
+  );
   pushStateToClients(sessionId, state);
   res.json({ state } satisfies ActionResponse);
 });

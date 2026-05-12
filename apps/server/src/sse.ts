@@ -1,6 +1,8 @@
 import type { Express, Response } from "express";
 import type { GameState } from "@roguelike/shared";
+import { logger } from "./logger.js";
 
+const log = logger.child({ module: "SSE" });
 // ─── SSE client registry ─────────────────────────────────────────────────────
 
 const sseClients = new Map<string, Set<Response>>();
@@ -16,20 +18,26 @@ const sseClients = new Map<string, Set<Response>>();
 export function pushStateToClients(sessionId: string, state: GameState): void {
   const clients = sseClients.get(sessionId);
   if (!clients || clients.size === 0) {
-    console.log(`[SSE] ❌ push skipped — no clients for session ${sessionId.slice(0, 8)}`);
+    log.warn({ sessionId: sessionId.slice(0, 8) }, "push skipped — no clients");
     return;
   }
-  console.log(
-    `[SSE] ▶ pushing phase="${state.phase}" to ${clients.size} client(s) (session ${sessionId.slice(0, 8)}, turn=${state.turn})`,
+  log.info(
+    {
+      sessionId: sessionId.slice(0, 8),
+      phase: state.phase,
+      turn: state.turn,
+      clients: clients.size,
+    },
+    "pushing state",
   );
   const data = JSON.stringify(state);
   let written = 0;
   for (const client of clients) {
     const ok = client.write(`data: ${data}\n\n`);
-    console.log(`[SSE]   write() returned ${ok} (false=backpressure)`);
+    log.debug({ ok }, "write()");
     written++;
   }
-  console.log(`[SSE] ✓ wrote to ${written} client(s)`);
+  log.debug({ written }, "push complete");
 }
 
 /**
@@ -56,22 +64,18 @@ export function registerSseRoute(app: Express, sessions: Map<string, GameState>)
 
     if (!sseClients.has(sessionId)) sseClients.set(sessionId, new Set());
     sseClients.get(sessionId)!.add(res);
-    console.log(
-      `[SSE] client connected — session ${sessionId} now has ${sseClients.get(sessionId)!.size} subscriber(s)`,
-    );
+    log.info({ sessionId, subscribers: sseClients.get(sessionId)!.size }, "client connected");
 
     // Catch-up push：立即推送当前状态，防止客户端在连接建立前错过的 push（竞态修复）
     const currentState = sessions.get(sessionId)!;
     const ok = res.write(`data: ${JSON.stringify(currentState)}\n\n`);
-    console.log(`[SSE] catch-up push phase="${currentState.phase}" write()=${ok}`);
+    log.debug({ phase: currentState.phase, ok }, "catch-up push");
 
     req.on("close", () => {
       const clients = sseClients.get(sessionId);
       if (clients) {
         clients.delete(res);
-        console.log(
-          `[SSE] client disconnected — session ${sessionId} now has ${clients.size} subscriber(s)`,
-        );
+        log.info({ sessionId, subscribers: clients.size }, "client disconnected");
         if (clients.size === 0) sseClients.delete(sessionId);
       }
     });
