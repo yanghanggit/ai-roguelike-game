@@ -14,12 +14,10 @@ import { DeepSeekClient } from "./deepseek-client.js";
 
 export class GameAgent {
   readonly name: string;
-  readonly displayName: string;
   readonly context: ContextMessage[];
 
-  constructor(name: string, displayName: string, systemPrompt: string) {
+  constructor(name: string, systemPrompt: string) {
     this.name = name;
-    this.displayName = displayName;
     this.context = [systemMessage(systemPrompt) as SystemMessage];
   }
 }

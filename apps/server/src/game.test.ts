@@ -425,7 +425,7 @@ describe("triggerAgentThinking", () => {
     activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
-    state.agents["monster-1-1"] = new GA("monster-1-1", "测试怪物", "测试系统提示");
+    state.agents["monster-1-1"] = new GA("怪物.测试怪物", "测试系统提示");
     state.activatedTurns["monster-1-1"] = 0;
     // 两者均在 turn=0 时被激活，需 turn 消进到 1 才能行动
     state.turn = 1;

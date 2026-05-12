@@ -51,7 +51,6 @@ export interface AgentMessage {
 /** 怪物 Agent 快照：名称 + 完整对话上下文 */
 export interface GameAgent {
   readonly name: string;
-  readonly displayName: string;
   readonly context: AgentMessage[];
 }
 

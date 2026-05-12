@@ -196,7 +196,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
       .post("/game/player-action")
@@ -216,7 +216,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
     state.map[0]![0]!.agentName = "monster-0-0";
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
       .post("/game/player-action")
@@ -234,7 +234,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     mockFetch("我决定攻击玩家！");
 
     const state = sessions.get(sessionId)!;
-    state.agents["monster-0-0"] = new GameAgentClass("monster-0-0", "测试怪物", "测试怪物");
+    state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
     // 手动预设：monster 在上一回合（turn=0）被发现，当前 turn=1 → 0 < 1 → 可以行动
     state.activatedTurns["monster-0-0"] = 0;
     state.turn = 1;

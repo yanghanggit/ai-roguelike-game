@@ -8,7 +8,7 @@
 import { TileType } from "@roguelike/shared";
 import type { GameMap, GameState, MapSize, Tile } from "@roguelike/shared";
 import { GameAgent, thinkBatch } from "./ai/index.js";
-import { MOCK_MONSTERS } from "./mock-monsters.js";
+import { MOCK_MONSTERS, extractLabel } from "./mock-monsters.js";
 
 // ─── Glyphs & weights ─────────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
   let message = LOG_MESSAGES[tile.type];
   if (tile.type === TileType.Monster && tile.agentName) {
     const agent = state.agents[tile.agentName];
-    if (agent) message = `${message}==>【${agent.displayName}】`;
+    if (agent) message = `${message}==>【${extractLabel(agent.name)}】`;
   }
   state.log = [...state.log, message].slice(-20);
 
@@ -215,12 +215,8 @@ function buildAgentsFromMap(map: GameMap): Record<string, GameAgent> {
     for (const tile of row) {
       if (tile.type === TileType.Monster && tile.agentName) {
         const template = MOCK_MONSTERS[monsterIndex % MOCK_MONSTERS.length]!;
-        agents[tile.agentName] = new GameAgent(
-          tile.agentName,
-          template.displayName,
-          template.systemPrompt,
-        );
-        tile.glyph = `E:${template.displayName}`;
+        agents[tile.agentName] = new GameAgent(template.name, template.systemPrompt);
+        tile.glyph = `E:${extractLabel(template.name)}`;
         monsterIndex++;
       }
     }
@@ -255,7 +251,9 @@ export async function triggerAgentThinking(state: GameState): Promise<void> {
   const perceptions = agentList.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   const actions = await thinkBatch(agentList, perceptions);
   const entries = actions
-    .map((content, i) => (content.length > 0 ? `${agentList[i]!.displayName}：${content}` : ""))
+    .map((content, i) =>
+      content.length > 0 ? `${extractLabel(agentList[i]!.name)}：${content}` : "",
+    )
     .filter((a) => a.length > 0);
   if (entries.length > 0) {
     state.log = [...state.log, ...entries].slice(-20);
