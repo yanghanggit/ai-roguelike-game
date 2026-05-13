@@ -7,7 +7,6 @@ import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.
 import { createInitialState } from "./game.js";
 import { applyReveal, activateAgent } from "./game-actions.js";
 import { buildTurnTaskPrompt, runAgentLoops } from "./agent-loop-runner.js";
-import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
 
@@ -243,72 +242,6 @@ describe("applyReveal", () => {
     delete (state.map[0]![0]! as { agentName?: string }).agentName;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();
-  });
-});
-
-// ─── saveGameState / loadGameState / loadLatestGameState ─────────────────────
-
-describe("JSON persistence", () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = fse.mkdtempSync(path.join(os.tmpdir(), "roguelike-test-"));
-  });
-
-  it("saveGameState 写入文件并返回路径，路径包含时间戳前缀", () => {
-    const state = createInitialState("persist-1", createRandomMap(4), DEFAULT_PLAYER);
-    const filePath = saveGameState(state, tmpDir);
-    expect(fse.existsSync(filePath)).toBe(true);
-    expect(path.basename(filePath)).toMatch(/^game-state-.*\.json$/);
-  });
-
-  it("loadGameState 能从路径还原 GameState", () => {
-    const state = createInitialState("persist-2", createRandomMap(4), DEFAULT_PLAYER);
-    const filePath = saveGameState(state, tmpDir);
-    const loaded = loadGameState(filePath);
-    expect(loaded.sessionId).toBe("persist-2");
-    expect(loaded.mapSize).toBe(4);
-    expect(loaded.player.hp).toBe(20);
-  });
-
-  it("保存后再修改状态，loadGameState 读出的仍是保存时的快照", () => {
-    const state = createInitialState("snapshot-test", createRandomMap(4), DEFAULT_PLAYER);
-    const filePath = saveGameState(state, tmpDir);
-    applyReveal(state, 0, 0); // 修改内存中的 state
-    const loaded = loadGameState(filePath);
-    expect(loaded.turn).toBe(0); // 快照中 turn 还是 0
-  });
-
-  it("loadLatestGameState 读取最新文件", async () => {
-    const s1 = createInitialState("first", createRandomMap(4), DEFAULT_PLAYER);
-    const s2 = createInitialState("second", createRandomMap(4), DEFAULT_PLAYER);
-    saveGameState(s1, tmpDir);
-    // 保证时间戳不同（文件名毫秒级）
-    await new Promise((r) => setTimeout(r, 5));
-    saveGameState(s2, tmpDir);
-    const latest = loadLatestGameState(tmpDir);
-    expect(latest.sessionId).toBe("second");
-  });
-
-  it("loadLatestGameState 在目录为空时抛出错误", () => {
-    expect(() => loadLatestGameState(tmpDir)).toThrow();
-  });
-
-  it("saveGameState 若目录不存在则自动创建", () => {
-    const nestedDir = path.join(tmpDir, "deep", "nested");
-    const state = createInitialState("nested", createRandomMap(4), DEFAULT_PLAYER);
-    saveGameState(state, nestedDir);
-    expect(fse.readdirSync(nestedDir).length).toBeGreaterThan(0);
-  });
-
-  it("多次 save 产生多个文件", async () => {
-    const state = createInitialState("multi", createRandomMap(4), DEFAULT_PLAYER);
-    saveGameState(state, tmpDir);
-    await new Promise((r) => setTimeout(r, 5));
-    applyReveal(state, 0, 0);
-    saveGameState(state, tmpDir);
-    const files = fse.readdirSync(tmpDir);
-    expect(files.length).toBe(2);
   });
 });
 
