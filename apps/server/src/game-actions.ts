@@ -2,7 +2,7 @@
  * 游戏动作层。
  *
  * 负责格子揭开、agent 激活与批量 AI 推理。
- * 包含与 AI 后端通信的 `think` / `thinkBatch` 辅助函数。
+ * 包含与 AI 后端通信的 `thinkBatch` 辅助函数。
  */
 
 import { TileType } from "@roguelike/shared";
@@ -80,34 +80,6 @@ export function activateAgent(state: GameState, agentName: string): void {
 }
 
 // ─── AI think ────────────────────────────────────────────────────────────────
-
-/**
- * 将 agent 当前上下文与本轮感知输入发往 DeepSeek，
- * 把产生的 `HumanMessage` + `AIMessage` 追加至 `agent.context`，
- * 并返回 AI 的行动描述字符串。
- *
- * 失败时返回空字符串——游戏逻辑优先容错，本回合该实体跳过行动。
- *
- * @param agent - 执行推理的 agent，其 `context` 会被追加本轮消息。
- * @param perception - 本回合传入 AI 的感知描述文本。
- * @returns AI 输出的行动描述；失败时为空字符串。
- */
-export async function think(agent: GameAgent, perception: string): Promise<string> {
-  const client = new DeepSeekClient({
-    name: agent.name,
-    prompt: perception,
-    context: agent.context,
-  });
-
-  await client.chat();
-
-  const response = client.responseContent;
-
-  agent.addHumanMessage(perception);
-  agent.addAIMessage(response);
-
-  return response;
-}
 
 /**
  * 在同一回合内并发执行多个 agent 的推理，委托给 `DeepSeekClient.batchChat()`。

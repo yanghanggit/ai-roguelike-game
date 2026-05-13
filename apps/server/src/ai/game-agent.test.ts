@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GameAgent } from "./game-agent.js";
-import { think, thinkBatch } from "../game-actions.js";
+import { thinkBatch } from "../game-actions.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ describe("GameAgent 构造", () => {
 
 // ─── think() 正常流程 ─────────────────────────────────────────────────────────
 
-describe("think() — 正常响应", () => {
+describe("thinkBatch() — 正常响应", () => {
   beforeEach(() => {
     process.env["DEEPSEEK_API_KEY"] = "test-key";
     vi.stubGlobal("fetch", mockFetchOk("我决定向左移动。"));
@@ -60,13 +60,13 @@ describe("think() — 正常响应", () => {
 
   it("返回 AI 的行动描述字符串", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    const result = await think(agent, "玩家揭开了你右边的格子。");
+    const result = (await thinkBatch([agent], ["玩家揭开了你右边的格子。"]))[0]!;
     expect(result).toBe("我决定向左移动。");
   });
 
-  it("think() 后 context 追加了 HumanMessage + AIMessage", async () => {
+  it("thinkBatch() 后 context 追加了 HumanMessage + AIMessage", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    await think(agent, "玩家靠近了。");
+    await thinkBatch([agent], ["玩家靠近了。"]);
     // [SystemMessage, HumanMessage, AIMessage]
     expect(agent.context).toHaveLength(3);
     expect(agent.context[1]!.type).toBe("human");
@@ -75,11 +75,11 @@ describe("think() — 正常响应", () => {
     expect(agent.context[2]!.content).toBe("我决定向左移动。");
   });
 
-  it("连续两次 think() 后 context 有 5 条消息（1 system + 2×human+ai）", async () => {
+  it("连续两次 thinkBatch() 后 context 有 5 条消息（1 system + 2×human+ai）", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    await think(agent, "回合 1 感知");
+    await thinkBatch([agent], ["回合 1 感知"]);
     vi.stubGlobal("fetch", mockFetchOk("第二次行动。"));
-    await think(agent, "回合 2 感知");
+    await thinkBatch([agent], ["回合 2 感知"]);
     expect(agent.context).toHaveLength(5);
     expect(agent.context[0]!.type).toBe("system");
     expect(agent.context[1]!.type).toBe("human");
@@ -88,11 +88,11 @@ describe("think() — 正常响应", () => {
     expect(agent.context[4]!.type).toBe("ai");
   });
 
-  it("连续两次 think() 时历史内容按顺序正确", async () => {
+  it("连续两次 thinkBatch() 时历史内容按顺序正确", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    await think(agent, "第一轮");
+    await thinkBatch([agent], ["第一轮"]);
     vi.stubGlobal("fetch", mockFetchOk("第二轮回复。"));
-    await think(agent, "第二轮");
+    await thinkBatch([agent], ["第二轮"]);
     expect(agent.context[1]!.content).toBe("第一轮");
     expect(agent.context[2]!.content).toBe("我决定向左移动。");
     expect(agent.context[3]!.content).toBe("第二轮");
@@ -102,7 +102,7 @@ describe("think() — 正常响应", () => {
 
 // ─── think() 失败容错 ─────────────────────────────────────────────────────────
 
-describe("think() — API 失败", () => {
+describe("thinkBatch() — API 失败", () => {
   beforeEach(() => {
     process.env["DEEPSEEK_API_KEY"] = "test-key";
     vi.stubGlobal("fetch", mockFetchFail());
@@ -112,15 +112,15 @@ describe("think() — API 失败", () => {
     delete process.env["DEEPSEEK_API_KEY"];
   });
 
-  it("API 返回错误时，think() 返回空字符串而不是 throw", async () => {
+  it("API 返回错误时，thinkBatch() 对应项返回空字符串而不是 throw", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    const result = await think(agent, "感知输入");
+    const result = (await thinkBatch([agent], ["感知输入"]))[0]!;
     expect(result).toBe("");
   });
 
   it("API 失败后 context 仍追加了 HumanMessage + AIMessage（content 为空）", async () => {
     const agent = new GameAgent("slime", "你是一只史莱姆。");
-    await think(agent, "感知输入");
+    await thinkBatch([agent], ["感知输入"]);
     expect(agent.context).toHaveLength(3);
     expect(agent.context[1]!.type).toBe("human");
     expect(agent.context[2]!.type).toBe("ai");
