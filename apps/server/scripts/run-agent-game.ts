@@ -27,7 +27,7 @@ import {
   BROADCAST_ENCOUNTERED,
   BROADCAST_PLAYER_ACTED,
 } from "../src/game-actions.js";
-import { runAgentLoops } from "../src/agent-loop-runner.js";
+import { buildTurnTaskPrompt, runAgentLoops } from "../src/agent-loop-runner.js";
 import { GameAgent } from "../src/ai/game-agent.js";
 import { saveGameState, loadLatestGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
@@ -292,7 +292,9 @@ program
     }
 
     // 触发所有已激活 agent 的 AI 推理，完成后切回玩家行动阶段
-    await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
+    const eventSummary = `第 ${state.turn} 回合，玩家揭开了一个新格子。`;
+    const task = buildTurnTaskPrompt(eventSummary);
+    await runAgentLoops(state, task);
 
     // 切回玩家行动阶段，等待下一次 reveal 触发
     state.phase = "player";

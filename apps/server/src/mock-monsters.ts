@@ -49,29 +49,7 @@ ${globalRules}
 
 ## 角色设定
 
-${characterSetting}
-
-## 行动规则
-
-你每一步都必须**只输出一个 JSON 对象**，不得附加任何额外文本、解释或 markdown 代码块。
-
-可用 actionType：
-
-- **query**：获取信息，不直接改变世界状态。
-  - queryType 仅允许：player_status、nearby_monsters
-- **act**：执行会改变局势的动作。
-  - 第一版仅允许：actType = "strike"
-  - 可选：summary（一句简短动作描述，供日志记录）
-- **done**：本回合结束，不采取行动。
-
-输出示例：
-
-- {"actionType":"query","queryType":"player_status"}
-- {"actionType":"query","queryType":"nearby_monsters"}
-- {"actionType":"act","actType":"strike","summary":"我挥剑直劈玩家。"}
-- {"actionType":"done"}
-
-**限制**：每回合最多使用 2 次 query。若已使用 2 次，下一步必须输出 act 或 done。`.trim();
+${characterSetting}`.trim();
 }
 
 // ─── 共享常量 ────────────────────────────────────────────────────────────────
