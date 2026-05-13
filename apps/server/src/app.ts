@@ -4,6 +4,8 @@
  * 挂载所有 HTTP 路由与 SSE 端点，持有内存 session 存储。
  * 无业务逻辑，所有游戏操作委托给 game-actions.ts / game.ts。
  */
+import * as path from "node:path";
+import * as url from "node:url";
 import express from "express";
 import cors from "cors";
 import type {
@@ -25,7 +27,12 @@ import {
 } from "./game-actions.js";
 import { buildTurnTaskPrompt, runAgentLoops } from "./agent-loop-runner.js";
 import { GameAgent } from "./ai/game-agent.js";
+import { saveGameState } from "./game-persistence.js";
 import { logger } from "./logger.js";
+
+const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
+/** 存档根目录，与 CLI 脚本共享同一路径 */
+const SAVES_DIR = path.resolve(__dirname, "../saves");
 
 const log = logger.child({ module: "Action" });
 
@@ -47,7 +54,7 @@ app.get("/health", (_req, res) => {
 });
 
 /** 创建新游戏会话，返回 sessionId 与初始 `GameState`。 */
-app.post("/game/start", (_req, res) => {
+app.post("/game/start", async (_req, res) => {
   // 生成唯一 sessionId，创建初始游戏状态并存储到 sessions 中
   const sessionId = crypto.randomUUID();
 
@@ -65,7 +72,10 @@ app.post("/game/start", (_req, res) => {
   sessions.set(sessionId, state);
 
   // 初始化所有 agent（当前仅有怪物），确保它们在首次被激活前已完成至少一次推理。
-  void initializeAgents(state);
+  await initializeAgents(state);
+
+  // 保存初始存档快照（含 agent 初始化结果）
+  saveGameState(state, path.join(SAVES_DIR, sessionId));
 
   // 返回 sessionId 与初始状态
   const response: StartGameResponse = { sessionId, state };
@@ -131,6 +141,9 @@ app.post("/game/player-action", (req, res) => {
       state.phase = "dungeon";
       log.info({ x: action.x, y: action.y, turn: state.turn }, `New tile — phase → "dungeon"`);
 
+      // 保存存档快照（phase = "dungeon"，等待 AI 推理）
+      saveGameState(state, path.join(SAVES_DIR, sessionId));
+
       // 推送更新后的状态到客户端，触发前端界面刷新
       pushStateToClients(sessionId, state);
     } else {
@@ -172,11 +185,13 @@ app.post("/game/dungeon-advance", async (req, res) => {
   // 切回玩家行动阶段，等待下一次 reveal 触发
   state.phase = "player";
 
-  // 推送更新后的状态到客户端，触发前端界面刷新
   log.info(
     { turn: state.turn, lastLog: state.log.at(-1)?.message },
     `Dungeon advance done — phase → "player"`,
   );
+
+  // 保存存档快照（phase = "player"，AI 推理已完成）
+  saveGameState(state, path.join(SAVES_DIR, sessionId));
 
   // 推送更新后的状态到客户端，触发前端界面刷新
   pushStateToClients(sessionId, state);
