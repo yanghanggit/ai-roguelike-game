@@ -211,7 +211,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
   });
 
   it("reveal Monster 后，dungeon-advance 前は AI 未行動（log 末尾に AI 台詞なし）", async () => {
-    mockFetch("我决定攻击玩家！");
+    mockFetch('{"actionType":"act","actType":"strike","summary":"我决定攻击玩家！"}');
 
     const state = sessions.get(sessionId)!;
     state.map[0]![0]!.type = TileType.Monster;
@@ -231,7 +231,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
   });
 
   it("dungeon-advance 後、激活怪物の AI 行動が log に現れ phase が player に戻る", async () => {
-    mockFetch("我决定攻击玩家！");
+    mockFetch('{"actionType":"act","actType":"strike","summary":"我决定攻击玩家！"}');
 
     const state = sessions.get(sessionId)!;
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");

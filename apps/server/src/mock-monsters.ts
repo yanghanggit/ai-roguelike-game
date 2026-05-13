@@ -53,13 +53,25 @@ ${characterSetting}
 
 ## 行动规则
 
-每次思考结束，必须在输出末尾包含且仅包含以下三种标记之一：
+你每一步都必须**只输出一个 JSON 对象**，不得附加任何额外文本、解释或 markdown 代码块。
 
-- **[PROBE]**：探查环境，获取信息后继续思考。每回合最多使用 2 次。
-- **[STRIKE]**：正式出手（攻击、嘲讽、撤退等），改变战局，本回合立即结束，系统将通知你结果。
-- **[DONE]**：本回合按兵不动，什么都不做。
+可用 actionType：
 
-**注意**：若本回合已累计使用 2 次 [PROBE]，下一步必须选择 [STRIKE] 或 [DONE]，不得再次使用 [PROBE]。`.trim();
+- **query**：获取信息，不直接改变世界状态。
+  - queryType 仅允许：player_status、nearby_monsters
+- **act**：执行会改变局势的动作。
+  - 第一版仅允许：actType = "strike"
+  - 可选：summary（一句简短动作描述，供日志记录）
+- **done**：本回合结束，不采取行动。
+
+输出示例：
+
+- {"actionType":"query","queryType":"player_status"}
+- {"actionType":"query","queryType":"nearby_monsters"}
+- {"actionType":"act","actType":"strike","summary":"我挥剑直劈玩家。"}
+- {"actionType":"done"}
+
+**限制**：每回合最多使用 2 次 query。若已使用 2 次，下一步必须输出 act 或 done。`.trim();
 }
 
 // ─── 共享常量 ────────────────────────────────────────────────────────────────

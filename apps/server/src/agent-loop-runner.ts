@@ -12,47 +12,145 @@ import { logger } from "./logger.js";
 
 const log = logger.child({ module: "AgentLoopRunner" });
 
-/** 输出中包含此标记表示怪物想探查环境（GET 类），最多允许 {@link AGENT_LOOP_MAX_PROBES} 次。 */
-const MARKER_PROBE = "[PROBE]";
-/** 输出中包含此标记表示怪物正式出手（POST 类），本回合立即结束。 */
-const MARKER_STRIKE = "[STRIKE]";
-/** 输出中包含此标记表示怪物本回合按兵不动。 */
-const MARKER_DONE = "[DONE]";
-/** 单回合允许的最大 PROBE 次数；超出后强制 STRIKE/DONE。 */
-const AGENT_LOOP_MAX_PROBES = 2;
+const ACTION_QUERY = "query";
+const ACTION_ACT = "act";
+const ACTION_DONE = "done";
+
+const QUERY_PLAYER_STATUS = "player_status";
+const QUERY_NEARBY_MONSTERS = "nearby_monsters";
+
+const ACT_STRIKE = "strike";
+
+/** 单回合允许的最大 QUERY 次数；超出后强制 ACT/DONE。 */
+const AGENT_LOOP_MAX_QUERIES = 2;
+/** JSON 格式错误时，最多给予 1 次纠错机会。 */
+const MAX_FORMAT_RETRIES = 1;
+
+type QueryType = typeof QUERY_PLAYER_STATUS | typeof QUERY_NEARBY_MONSTERS;
+type ActType = typeof ACT_STRIKE;
+
+interface QueryDecision {
+  actionType: typeof ACTION_QUERY;
+  queryType: QueryType;
+}
+
+interface ActDecision {
+  actionType: typeof ACTION_ACT;
+  actType: ActType;
+  summary?: string;
+}
+
+interface DoneDecision {
+  actionType: typeof ACTION_DONE;
+}
+
+type AgentDecision = QueryDecision | ActDecision | DoneDecision;
 
 /**
- * 探查行动的占位处理（待实现真实查询逻辑）。
- * @returns 注入 agent 上下文的探查结果字符串。
+ * 将 LLM 输出解析为 JSON 决策。
  */
-function mockHandleProbe(_agentName: string, _output: string): string {
-  return "【探查结果】（待实现）：周围一片静寂，感知不到明显威胁。";
+function parseAgentDecision(output: string): AgentDecision {
+  const cleaned = output
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error("invalid_json");
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("invalid_shape");
+  }
+
+  const decision = parsed as Record<string, unknown>;
+  const actionType = decision["actionType"];
+  if (actionType === ACTION_QUERY) {
+    const queryType = decision["queryType"];
+    if (queryType === QUERY_PLAYER_STATUS || queryType === QUERY_NEARBY_MONSTERS) {
+      return { actionType: ACTION_QUERY, queryType };
+    }
+    throw new Error("invalid_query_type");
+  }
+
+  if (actionType === ACTION_ACT) {
+    const actType = decision["actType"];
+    if (actType !== ACT_STRIKE) {
+      throw new Error("invalid_act_type");
+    }
+    const summary = typeof decision["summary"] === "string" ? decision["summary"] : undefined;
+    return { actionType: ACTION_ACT, actType, summary };
+  }
+
+  if (actionType === ACTION_DONE) {
+    return { actionType: ACTION_DONE };
+  }
+
+  throw new Error("invalid_action_type");
 }
 
 /**
- * 出手行动的占位处理（待实现真实计算逻辑）。
- * @returns 注入 agent 上下文的行动结果通知字符串。
+ * Query 的占位处理（第一版接入基础状态读取）。
  */
-function mockHandleStrike(_agentName: string, _output: string): string {
-  return "【行动结果】（待实现）：你的行动已被记录，等待下一回合。";
+function handleQuery(agentName: string, queryType: QueryType, state: GameState): string {
+  if (queryType === QUERY_PLAYER_STATUS) {
+    return `【查询结果/player_status】玩家状态：HP ${state.player.hp}/${state.player.maxHp}，攻击 ${state.player.attack}，防御 ${state.player.defense}。`;
+  }
+
+  const others = Object.keys(state.activatedTurns)
+    .filter((name) => name !== agentName)
+    .map((name) => state.agents[name])
+    .filter((a): a is GameAgent => a !== undefined)
+    .map((a) => extractLabel(a.name));
+
+  if (others.length === 0) {
+    return "【查询结果/nearby_monsters】当前未发现其他已激活怪物。";
+  }
+
+  return `【查询结果/nearby_monsters】其他已激活怪物：${others.join("、")}。`;
+}
+
+/**
+ * Act 的占位处理（第一版仅支持 strike）。
+ */
+function handleAct(decision: ActDecision): { notification: string; logMessage: string } {
+  const logMessage =
+    decision.summary && decision.summary.trim().length > 0
+      ? decision.summary.trim()
+      : "发动了攻击。";
+  return {
+    notification: "【行动结果/strike】你的出手已被系统记录，等待下一回合。",
+    logMessage,
+  };
 }
 
 /**
  * 对单个 agent 执行受控多步推理循环。
  *
  * 循环规则：
- * - 输出含 `[PROBE]`：执行探查，获取环境信息后继续推理；每回合最多 {@link AGENT_LOOP_MAX_PROBES} 次。
- * - 输出含 `[STRIKE]`：正式出手，系统通知结果后本回合结束。
- * - 输出含 `[DONE]`：本回合按兵不动，直接结束。
- * - 达到 PROBE 上限后注入强制提示，要求模型选择 STRIKE 或 DONE。
- * - 兜底：LLM 未输出任何标记时直接返回原始输出并结束。
+ * - 输出 JSON actionType=query：执行查询并继续推理；每回合最多 {@link AGENT_LOOP_MAX_QUERIES} 次。
+ * - 输出 JSON actionType=act：执行动作，通知结果后本回合结束。
+ * - 输出 JSON actionType=done：本回合按兵不动，直接结束。
+ * - 达到 QUERY 上限后注入强制提示，要求模型选择 ACT 或 DONE。
+ * - JSON 解析/校验失败时注入格式纠正提示，最多重试 1 次。
  *
  * @param agent - 参与本轮推理的 agent，`context` 会在循环内持续追加。
  * @param task - 本回合触发推理的任务文本（第一步 prompt）。
- * @returns STRIKE 时返回原始 LLM 输出供写入日志；DONE 或兜底时返回空字符串或原始输出。
+ * @param maxQueries - 单回合允许的最大 query 次数。
+ * @returns ACT 时返回可写入日志的行动摘要；DONE 或兜底时返回空字符串。
  */
-async function agentLoop(agent: GameAgent, task: string): Promise<string> {
-  let probeCount = 0;
+async function agentLoop(
+  agent: GameAgent,
+  task: string,
+  state: GameState,
+  maxQueries: number,
+): Promise<string> {
+  let queryCount = 0;
+  let formatRetries = 0;
   let currentPrompt = task;
 
   while (true) {
@@ -67,53 +165,49 @@ async function agentLoop(agent: GameAgent, task: string): Promise<string> {
     agent.addHumanMessage(currentPrompt);
     agent.addAIMessage(response);
 
-    if (response.includes(MARKER_STRIKE)) {
-      const notification = mockHandleStrike(agent.name, response);
-      agent.addHumanMessage(notification);
-      return response;
-    }
+    let decision: AgentDecision;
+    try {
+      decision = parseAgentDecision(response);
+    } catch {
+      if (formatRetries >= MAX_FORMAT_RETRIES) {
+        log.warn({ name: agent.name, response }, "agentLoop: invalid decision json after retry");
+        return "";
+      }
 
-    if (response.includes(MARKER_DONE)) {
+      formatRetries += 1;
+      currentPrompt =
+        "你上一步输出不符合协议。请仅输出单个 JSON 对象，不要附加解释文本。可用 actionType：query/act/done。";
+      continue;
+    }
+    formatRetries = 0;
+
+    if (decision.actionType === ACTION_DONE) {
       return "";
     }
 
-    if (response.includes(MARKER_PROBE)) {
-      probeCount += 1;
-      const probeResult = mockHandleProbe(agent.name, response);
-      agent.addHumanMessage(probeResult);
-      if (probeCount >= AGENT_LOOP_MAX_PROBES) {
-        currentPrompt =
-          "你已累计探查 2 次，本回合必须做出行动：使用 [STRIKE] 正式出手，或使用 [DONE] 按兵不动。";
-      } else {
-        currentPrompt = "请继续思考并决定下一步行动。";
-      }
+    if (decision.actionType === ACTION_ACT) {
+      const actResult = handleAct(decision);
+      agent.addHumanMessage(actResult.notification);
+      return actResult.logMessage;
+    }
+
+    if (queryCount >= maxQueries) {
+      currentPrompt =
+        `你已累计 query ${maxQueries} 次，本回合必须输出 JSON：actionType=act（actType=strike）或 actionType=done。`;
       continue;
     }
 
-    // 兜底：LLM 未输出任何约定标记
-    log.warn(
-      { name: agent.name, response },
-      "agentLoop: no marker found in output, treating as done",
-    );
-    return response;
-  }
-}
+    queryCount += 1;
+    const queryResult = handleQuery(agent.name, decision.queryType, state);
+    agent.addHumanMessage(queryResult);
 
-/**
- * 并发对多个 agent 执行受控多步推理循环，每个 agent 独立跑完自己的循环。
- *
- * @param agents - 参与本轮推理的 agent 列表，顺序与 `tasks` 对应。
- * @param tasks - 各 agent 本回合的任务描述文本，顺序与 `agents` 对应。
- * @returns 与 `agents` 顺序一致的行动描述数组；DONE 或失败时对应项为空字符串。
- */
-async function agentLoopBatch(agents: GameAgent[], tasks: string[]): Promise<string[]> {
-  if (agents.length !== tasks.length) {
-    throw new Error(
-      `agentLoopBatch: agents(${agents.length}) 与 tasks(${tasks.length}) 长度不一致`,
-    );
+    if (queryCount >= maxQueries) {
+      currentPrompt =
+        `你已累计 query ${maxQueries} 次，本回合必须输出 JSON：actionType=act（actType=strike）或 actionType=done。`;
+    } else {
+      currentPrompt = "请基于查询结果继续决策，并仅输出一个 JSON 对象。";
+    }
   }
-  if (agents.length === 0) return [];
-  return Promise.all(agents.map((agent, i) => agentLoop(agent, tasks[i]!)));
 }
 
 /**
@@ -123,22 +217,26 @@ async function agentLoopBatch(agents: GameAgent[], tasks: string[]): Promise<str
  * @param task - 本回合触发推理的任务描述，注入给所有参与推理的 agent。
  */
 export async function runAgentLoops(state: GameState, task: string): Promise<void> {
+
+  // 选择所有已激活且非本回合首次被激活的 agent 参与推理，确保新激活的 agent 从下一回合开始参与。
   const agentList = Object.keys(state.activatedTurns)
     .filter((name) => state.activatedTurns[name]! < state.turn)
     .map((name) => state.agents[name])
     .filter((a) => a !== undefined)
     .map((a) => a as unknown as GameAgent);
 
+  // 无需推理的情况直接返回，避免不必要的日志记录和状态更新。
   if (agentList.length === 0) {
     log.debug({ turn: state.turn }, "runAgentLoops: no agents to run");
     return;
   }
 
-  const actions = await agentLoopBatch(
-    agentList,
-    agentList.map(() => task),
+  // 并发执行所有 agent 的推理循环，收集行动摘要。
+  const actions = await Promise.all(
+    agentList.map((agent) => agentLoop(agent, task, state, AGENT_LOOP_MAX_QUERIES)),
   );
 
+  // 将所有行动摘要追加到 state.log 中，供玩家查看。
   const entries = actions
     .map((content, i) =>
       content.length > 0 ? `${extractLabel(agentList[i]!.name)}：${content}` : "",

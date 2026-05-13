@@ -366,7 +366,13 @@ describe("triggerAgentThinking", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "怪物发动攻击！" } }],
+          choices: [
+            {
+              message: {
+                content: '{"actionType":"act","actType":"strike","summary":"怪物发动攻击！"}',
+              },
+            },
+          ],
           usage: {
             prompt_tokens: 0,
             completion_tokens: 0,
@@ -394,7 +400,12 @@ describe("triggerAgentThinking", () => {
       "fetch",
       vi.fn().mockImplementation(async () => {
         callCount++;
-        const content = callCount === 1 ? "怪物A攻击！" : "怪物B防御！";
+        const summary = callCount === 1 ? "怪物A攻击！" : "怪物B防御！";
+        const content = JSON.stringify({
+          actionType: "act",
+          actType: "strike",
+          summary,
+        });
         return {
           ok: true,
           json: async () => ({
@@ -429,7 +440,13 @@ describe("triggerAgentThinking", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "AI 行动" } }],
+          choices: [
+            {
+              message: {
+                content: '{"actionType":"act","actType":"strike","summary":"AI 行动"}',
+              },
+            },
+          ],
           usage: {
             prompt_tokens: 0,
             completion_tokens: 0,
