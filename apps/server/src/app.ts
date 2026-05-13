@@ -18,7 +18,7 @@ import { createInitialState } from "./game.js";
 import {
   applyReveal,
   activateAgent,
-  triggerAgentThinking,
+  runAgentLoops,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
@@ -166,7 +166,7 @@ app.post("/game/dungeon-advance", async (req, res) => {
     return;
   }
 
-  await triggerAgentThinking(state);
+  await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   state.phase = "player";
   log.info(
     { turn: state.turn, lastLog: state.log.at(-1)?.message },

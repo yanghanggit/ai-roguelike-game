@@ -22,7 +22,7 @@ import { createInitialState } from "../src/game.js";
 import {
   applyReveal,
   activateAgent,
-  triggerAgentThinking,
+  runAgentLoops,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
@@ -292,7 +292,7 @@ program
     }
 
     // 触发所有已激活 agent 的 AI 推理，完成后切回玩家行动阶段
-    await triggerAgentThinking(state);
+    await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
 
     // 切回玩家行动阶段，等待下一次 reveal 触发
     state.phase = "player";

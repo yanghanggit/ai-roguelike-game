@@ -5,7 +5,7 @@ import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
 import { createInitialState } from "./game.js";
-import { applyReveal, activateAgent, triggerAgentThinking } from "./game-actions.js";
+import { applyReveal, activateAgent, runAgentLoops } from "./game-actions.js";
 import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
@@ -355,7 +355,7 @@ describe("triggerAgentThinking", () => {
     const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
-    await triggerAgentThinking(state);
+    await runAgentLoops(state, "第 1 回合，玩家揭开了一个新格子。");
     expect(state.log).toEqual(logBefore);
   });
 
@@ -383,7 +383,7 @@ describe("triggerAgentThinking", () => {
     // turn=1 时被激活，需 turn=2 才能行动
     state.turn = 2;
 
-    await triggerAgentThinking(state);
+    await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
     expect(state.log[state.log.length - 1]!.message).toBe("骷髅战士：怪物发动攻击！");
   });
 
@@ -417,7 +417,7 @@ describe("triggerAgentThinking", () => {
     state.activatedTurns["monster-1-1"] = 0;
     // 两者均在 turn=0 时被激活，需 turn 消进到 1 才能行动
     state.turn = 1;
-    await triggerAgentThinking(state);
+    await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
     expect(state.log.map((e) => e.message)).toContain("骷髅战士：怪物A攻击！");
     expect(state.log.map((e) => e.message)).toContain("测试怪物：怪物B防御！");
   });
@@ -444,7 +444,7 @@ describe("triggerAgentThinking", () => {
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;
     const logBefore = state.log.length;
-    await triggerAgentThinking(state);
+    await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
     expect(state.log.length).toBeGreaterThan(logBefore);
   });
 });
