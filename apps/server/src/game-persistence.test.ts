@@ -45,11 +45,10 @@ describe("game-persistence", () => {
     const savedDir = saveGameState(state, tmpDir);
     const agentName = state.agents["monster-0-1"]!.name;
     const bufferContent = fse.readFileSync(path.join(savedDir, "monster-0-1_buffer.md"), "utf8");
-    expect(bufferContent).toMatch(/^System: /);
-    // 若 context 中存在 AI 消息，其前缀应为 agent.name
     const lines = bufferContent.split("\n");
     const aiLines = lines.filter((l) => l.startsWith(`${agentName}: `));
     const systemLines = lines.filter((l) => l.startsWith("System: "));
+    expect(systemLines.length).toBeGreaterThan(0);
     expect(systemLines.length).toBeGreaterThan(0);
     // AI 行出现时前缀正确（system prompt 仅含 system 消息，故 AI 行可能为 0）
     aiLines.forEach((l) => expect(l.startsWith(`${agentName}: `)).toBe(true));

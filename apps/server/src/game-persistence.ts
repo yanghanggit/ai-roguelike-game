@@ -14,7 +14,7 @@ import * as path from "node:path";
 import fse from "fs-extra";
 import type { GameState, AgentMessage } from "@roguelike/shared";
 import { GameAgent } from "./ai/game-agent.js";
-import { getBufferString, type ContextMessage } from "./ai/messages.js";
+import type { ContextMessage } from "./ai/messages.js";
 
 /** 生成带时间戳的存档目录名，格式：`game-state-20260509T143857-123`。 */
 function makeTimestampedDirname(): string {
@@ -42,7 +42,13 @@ export function saveGameState(state: GameState, savesDir: string): string {
 
   for (const [key, agent] of Object.entries(state.agents)) {
     fse.outputJsonSync(path.join(saveDir, `${key}.json`), agent, { spaces: 2 });
-    const buffer = getBufferString(agent.context, "Human", agent.name);
+    const buffer = agent.context
+      .map((msg) => {
+        const prefix =
+          msg.type === "system" ? "System" : msg.type === "human" ? "Human" : agent.name;
+        return `\n-------------------\n${prefix}: ${msg.content}`;
+      })
+      .join("\n");
     fse.outputFileSync(path.join(saveDir, `${key}_buffer.md`), buffer, "utf8");
   }
 
