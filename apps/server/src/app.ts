@@ -18,18 +18,16 @@ import { createInitialState } from "./game.js";
 import {
   applyReveal,
   activateAgent,
-  runAgentLoops,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
   BROADCAST_PLAYER_ACTED,
 } from "./game-actions.js";
+import { runAgentLoops } from "./agent-loop-runner.js";
 import { GameAgent } from "./ai/game-agent.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "Action" });
-
-export { createRandomMap as createMap } from "./game-map.js";
 
 export const app = express();
 
@@ -166,12 +164,21 @@ app.post("/game/dungeon-advance", async (req, res) => {
     return;
   }
 
+  // 触发所有已激活 agent 的 AI 推理，完成后切回玩家行动阶段
   await runAgentLoops(state, `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
+
+  // 切回玩家行动阶段，等待下一次 reveal 触发
   state.phase = "player";
+
+  // 推送更新后的状态到客户端，触发前端界面刷新
   log.info(
     { turn: state.turn, lastLog: state.log.at(-1)?.message },
     `Dungeon advance done — phase → "player"`,
   );
+
+  // 推送更新后的状态到客户端，触发前端界面刷新
   pushStateToClients(sessionId, state);
+
+  // 响应当前状态（主要用于调试，前端不依赖此响应）
   res.json({ state } satisfies ActionResponse);
 });

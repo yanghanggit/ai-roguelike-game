@@ -5,7 +5,8 @@ import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
 import { createInitialState } from "./game.js";
-import { applyReveal, activateAgent, runAgentLoops } from "./game-actions.js";
+import { applyReveal, activateAgent } from "./game-actions.js";
+import { runAgentLoops } from "./agent-loop-runner.js";
 import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
@@ -31,9 +32,9 @@ describe("LOG_MESSAGES", () => {
   });
 });
 
-// ─── createMap ────────────────────────────────────────────────────────────────
+// ─── createRandomMap ────────────────────────────────────────────────────────
 
-describe("createMap", () => {
+describe("createRandomMap", () => {
   it("3×3 地图有正确的行列数", () => {
     const map = createRandomMap(3);
     expect(map).toHaveLength(3);

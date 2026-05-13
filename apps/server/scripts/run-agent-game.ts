@@ -22,12 +22,12 @@ import { createInitialState } from "../src/game.js";
 import {
   applyReveal,
   activateAgent,
-  runAgentLoops,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
   BROADCAST_PLAYER_ACTED,
 } from "../src/game-actions.js";
+import { runAgentLoops } from "../src/agent-loop-runner.js";
 import { GameAgent } from "../src/ai/game-agent.js";
 import { saveGameState, loadLatestGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
-import { app, sessions, createMap } from "./app.js";
+import { app, sessions } from "./app.js";
+import { createRandomMap } from "./game-map.js";
 import type { GameState } from "@roguelike/shared";
 import { TileType } from "@roguelike/shared";
 import { GameAgent as GameAgentClass } from "./ai/index.js";
@@ -149,9 +150,9 @@ describe("POST /game/player-action — reveal", () => {
   });
 });
 
-describe("createMap", () => {
+describe("createRandomMap", () => {
   it("creates a 3×3 map with at least 1 entrance", () => {
-    const map = createMap(3);
+    const map = createRandomMap(3);
     expect(map).toHaveLength(3);
     expect(map[0]).toHaveLength(3);
     const entrances = map.flat().filter((t) => t.type === "entrance").length;
@@ -159,7 +160,7 @@ describe("createMap", () => {
   });
 
   it("creates a 4×4 map with at least 2 entrances", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     expect(map).toHaveLength(4);
     expect(map[0]).toHaveLength(4);
     const entrances = map.flat().filter((t) => t.type === "entrance").length;
@@ -167,7 +168,7 @@ describe("createMap", () => {
   });
 
   it("all tiles start unrevealed", () => {
-    const map = createMap(4);
+    const map = createRandomMap(4);
     expect(map.flat().every((t) => !t.revealed)).toBe(true);
   });
 });
