@@ -41,7 +41,7 @@ describe("GameAgent 构造", () => {
   it("两个 agent 的 context 彼此独立", () => {
     const a = new GameAgent("a", "提示 A");
     const b = new GameAgent("b", "提示 B");
-    a.context.push({ type: "human", content: "hi", additionalKwargs: {} });
+    a.addHumanMessage("hi");
     expect(b.context).toHaveLength(1);
   });
 });

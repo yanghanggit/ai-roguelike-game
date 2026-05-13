@@ -15,7 +15,16 @@ import type {
 import { pushStateToClients, registerSseRoute } from "./sse.js";
 import { createRandomMap } from "./game-map.js";
 import { createInitialState } from "./game.js";
-import { applyReveal, activateAgent, triggerAgentThinking, initializeAgents } from "./game-actions.js";
+import {
+  applyReveal,
+  activateAgent,
+  triggerAgentThinking,
+  initializeAgents,
+  broadcastToAgents,
+  BROADCAST_ENCOUNTERED,
+  BROADCAST_PLAYER_ACTED,
+} from "./game-actions.js";
+import { GameAgent } from "./ai/game-agent.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "Action" });
@@ -41,7 +50,10 @@ app.get("/health", (_req, res) => {
 
 /** 创建新游戏会话，返回 sessionId 与初始 `GameState`。 */
 app.post("/game/start", (_req, res) => {
+  // 生成唯一 sessionId，创建初始游戏状态并存储到 sessions 中
   const sessionId = crypto.randomUUID();
+
+  // 初始状态：
   const state = createInitialState(sessionId, createRandomMap(4), {
     hp: 20,
     maxHp: 20,
@@ -50,9 +62,14 @@ app.post("/game/start", (_req, res) => {
     level: 1,
     xp: 0,
   });
+
+  // 将新状态存入内存 session 存储
   sessions.set(sessionId, state);
+
+  // 初始化所有 agent（当前仅有怪物），确保它们在首次被激活前已完成至少一次推理。
   void initializeAgents(state);
 
+  // 返回 sessionId 与初始状态
   const response: StartGameResponse = { sessionId, state };
   res.json(response);
 });
@@ -89,6 +106,9 @@ app.post("/game/player-action", (req, res) => {
       // 新格子（怪物或非怪物）：激活 agent（若有），进入 dungeon phase
       if (result.agentName) {
         activateAgent(state, result.agentName);
+        // 广播给被揭开的怪物自身
+        const encounteredAgent = state.agents[result.agentName] as unknown as GameAgent | undefined;
+        if (encounteredAgent) broadcastToAgents([encounteredAgent], BROADCAST_ENCOUNTERED);
         log.info(
           {
             x: action.x,
@@ -99,8 +119,21 @@ app.post("/game/player-action", (req, res) => {
           "Monster revealed — agent activated",
         );
       }
+
+      // 广播给所有其他已激活怪物（排除刚激活的）
+      const otherAgents = Object.keys(state.activatedTurns)
+        .filter((name) => name !== result.agentName)
+        .map((name) => state.agents[name] as unknown as GameAgent | undefined)
+        .filter((a): a is GameAgent => a !== undefined);
+
+      // 广播玩家行动给其他已激活怪物，触发它们的感知更新（但不立即推理，等 dungeon-advance 统一触发）
+      if (otherAgents.length > 0) broadcastToAgents(otherAgents, BROADCAST_PLAYER_ACTED);
+
+      // 切换到地下城行动阶段，等待 dungeon-advance 触发怪物行动
       state.phase = "dungeon";
       log.info({ x: action.x, y: action.y, turn: state.turn }, `New tile — phase → "dungeon"`);
+
+      // 推送更新后的状态到客户端，触发前端界面刷新
       pushStateToClients(sessionId, state);
     } else {
       // 格子已揭开：不改 phase，仍 push 保持 SSE 为唯一状态源

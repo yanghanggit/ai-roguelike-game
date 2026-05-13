@@ -9,7 +9,7 @@ import { TileType } from "@roguelike/shared";
 import type { GameState, LogEntry } from "@roguelike/shared";
 import { GameAgent } from "./ai/game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
-import { humanMessage, aiMessage } from "./ai/messages.js";
+
 import { extractLabel } from "./mock-monsters.js";
 import { LOG_MESSAGES } from "./game-map.js";
 import { logger } from "./logger.js";
@@ -103,8 +103,8 @@ export async function think(agent: GameAgent, perception: string): Promise<strin
 
   const response = client.responseContent;
 
-  agent.context.push(humanMessage(perception));
-  agent.context.push(aiMessage(response));
+  agent.addHumanMessage(perception);
+  agent.addAIMessage(response);
 
   return response;
 }
@@ -140,8 +140,8 @@ export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Pr
 
   return clients.map((client, i) => {
     const response = client.responseContent;
-    agents[i]!.context.push(humanMessage(perceptions[i]!));
-    agents[i]!.context.push(aiMessage(response));
+    agents[i]!.addHumanMessage(perceptions[i]!);
+    agents[i]!.addAIMessage(response);
     return response;
   });
 }
@@ -149,6 +149,10 @@ export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Pr
 // ─── Agent initialization ────────────────────────────────────────────────────
 
 const INIT_PERCEPTION = "游戏开始，你已苏醒，开始警戒地下城。";
+/** 怪物被玩家揭开时，注入给该怪物自身的感知。 */
+export const BROADCAST_ENCOUNTERED = "玩家发现了你，你已被激活，进入警戒状态。";
+/** 玩家每次揭开格子时，注入给所有其他已激活怪物的感知。 */
+export const BROADCAST_PLAYER_ACTED = "玩家揭开了一个新格子。";
 
 /**
  * 在游戏创建后对所有怪物 agent 执行一次初始化推理。
@@ -165,9 +169,9 @@ const INIT_PERCEPTION = "游戏开始，你已苏醒，开始警戒地下城。"
  * @param state - 当前游戏状态，`agents` 中的所有 agent 都会参与初始化。
  */
 export async function initializeAgents(state: GameState): Promise<void> {
-  const agentList = Object.values(state.agents).filter(
-    (a): a is GameAgent => a !== undefined,
-  );
+  const agentList = Object.values(state.agents)
+    .filter((a) => a !== undefined)
+    .map((a) => a as unknown as GameAgent);
   if (agentList.length === 0) return;
 
   const clients = agentList.map(
@@ -183,8 +187,25 @@ export async function initializeAgents(state: GameState): Promise<void> {
 
   for (let i = 0; i < agentList.length; i++) {
     const response = clients[i]!.responseContent;
-    agentList[i]!.context.push(humanMessage(INIT_PERCEPTION));
-    agentList[i]!.context.push(aiMessage(response));
+    agentList[i]!.addHumanMessage(INIT_PERCEPTION);
+    agentList[i]!.addAIMessage(response);
+  }
+}
+
+// ─── Agent broadcast ─────────────────────────────────────────────────────────
+
+/**
+ * 向指定 agent 列表的每个 agent 注入一条 `HumanMessage`，不触发 AI 推理，不写 `state.log`。
+ *
+ * 调用方负责按场景筛选 agent 列表（被揭开的怪物、其他已激活怪物等），
+ * 本函数只做统一的上下文写入，是所有广播操作的单一入口。
+ *
+ * @param agents - 接收广播的 agent 列表。
+ * @param message - 注入的感知文本。
+ */
+export function broadcastToAgents(agents: GameAgent[], message: string): void {
+  for (const agent of agents) {
+    agent.addHumanMessage(message);
   }
 }
 
@@ -201,7 +222,8 @@ export async function triggerAgentThinking(state: GameState): Promise<void> {
   const agentList = Object.keys(state.activatedTurns)
     .filter((name) => state.activatedTurns[name]! < state.turn)
     .map((name) => state.agents[name])
-    .filter((a): a is GameAgent => a !== undefined);
+    .filter((a) => a !== undefined)
+    .map((a) => a as unknown as GameAgent);
   if (agentList.length === 0) return;
   const perceptions = agentList.map(() => `第 ${state.turn} 回合，玩家揭开了一个新格子。`);
   const actions = await thinkBatch(agentList, perceptions);

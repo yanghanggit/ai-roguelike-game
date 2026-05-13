@@ -7,7 +7,9 @@
 
 import * as path from "node:path";
 import fse from "fs-extra";
-import type { GameState } from "@roguelike/shared";
+import type { GameState, AgentMessage } from "@roguelike/shared";
+import { GameAgent } from "./ai/game-agent.js";
+import type { ContextMessage } from "./ai/messages.js";
 
 /** 生成带时间戳的存档文件名，格式：`game-state-20260509T143857-123.json`。 */
 function makeTimestampedFilename(): string {
@@ -29,13 +31,26 @@ export function saveGameState(state: GameState, savesDir: string): string {
 }
 
 /**
+ * 将 JSON 中的 agents 纯对象重建为 `GameAgent` class 实例，使其携带方法（`addHumanMessage` 等）。
+ * 存档中的 agents 经 `toJSON()` 序列化为 `{name, context}`，加载后须执行此重建。
+ */
+function reconstructAgents(state: GameState): GameState {
+  for (const [key, raw] of Object.entries(state.agents)) {
+    const context = (raw as { context: readonly AgentMessage[] })
+      .context as unknown as ContextMessage[];
+    state.agents[key] = GameAgent.fromRaw((raw as { name: string }).name, context);
+  }
+  return state;
+}
+
+/**
  * 从指定路径加载存档，适合已知文件名时的精确读取。
  *
  * @param filePath - 存档文件的绝对或相对路径。
- * @returns 反序列化后的 `GameState` 对象。
+ * @returns 反序列化后的 `GameState` 对象（agents 已重建为 class 实例）。
  */
 export function loadGameState(filePath: string): GameState {
-  return fse.readJsonSync(filePath) as GameState;
+  return reconstructAgents(fse.readJsonSync(filePath) as GameState);
 }
 
 /**
@@ -45,7 +60,7 @@ export function loadGameState(filePath: string): GameState {
  * 目录为空时抛出错误。
  *
  * @param savesDir - 存档目录路径。
- * @returns 最新存档反序列化后的 `GameState` 对象。
+ * @returns 最新存档反序列化后的 `GameState` 对象（agents 已重建为 class 实例）。
  * @throws 若目录中不存在符合命名规则的存档文件。
  */
 export function loadLatestGameState(savesDir: string): GameState {
@@ -57,5 +72,5 @@ export function loadLatestGameState(savesDir: string): GameState {
     throw new Error(`saves 目录中没有找到存档文件：${savesDir}`);
   }
   const latest = files[files.length - 1]!;
-  return fse.readJsonSync(path.join(savesDir, latest)) as GameState;
+  return reconstructAgents(fse.readJsonSync(path.join(savesDir, latest)) as GameState);
 }
