@@ -146,6 +146,48 @@ export async function thinkBatch(agents: GameAgent[], perceptions: string[]): Pr
   });
 }
 
+// ─── Agent initialization ────────────────────────────────────────────────────
+
+const INIT_PERCEPTION = "游戏开始，你已苏醒，开始警戒地下城。";
+
+/**
+ * 在游戏创建后对所有怪物 agent 执行一次初始化推理。
+ *
+ * 向每个 agent 发送开场感知词，将产生的 `HumanMessage` + `AIMessage`
+ * 追加至各自的 `context`，但不写入 `state.log`（对玩家不可见）。
+ *
+ * 使该 agent 的上下文结构为：
+ *   [SystemMessage]  角色设定
+ *   [HumanMessage]   "游戏开始，你已苏醒..."
+ *   [AIMessage]      怪物初始反应
+ *   （后续游戏循环消息...）
+ *
+ * @param state - 当前游戏状态，`agents` 中的所有 agent 都会参与初始化。
+ */
+export async function initializeAgents(state: GameState): Promise<void> {
+  const agentList = Object.values(state.agents).filter(
+    (a): a is GameAgent => a !== undefined,
+  );
+  if (agentList.length === 0) return;
+
+  const clients = agentList.map(
+    (agent) =>
+      new DeepSeekClient({
+        name: agent.name,
+        prompt: INIT_PERCEPTION,
+        context: agent.context,
+      }),
+  );
+
+  await DeepSeekClient.batchChat(clients);
+
+  for (let i = 0; i < agentList.length; i++) {
+    const response = clients[i]!.responseContent;
+    agentList[i]!.context.push(humanMessage(INIT_PERCEPTION));
+    agentList[i]!.context.push(aiMessage(response));
+  }
+}
+
 // ─── Agent thinking trigger ──────────────────────────────────────────────────
 
 /**

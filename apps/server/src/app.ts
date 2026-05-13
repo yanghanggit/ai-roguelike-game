@@ -15,7 +15,7 @@ import type {
 import { pushStateToClients, registerSseRoute } from "./sse.js";
 import { createRandomMap } from "./game-map.js";
 import { createInitialState } from "./game.js";
-import { applyReveal, activateAgent, triggerAgentThinking } from "./game-actions.js";
+import { applyReveal, activateAgent, triggerAgentThinking, initializeAgents } from "./game-actions.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "Action" });
@@ -51,6 +51,7 @@ app.post("/game/start", (_req, res) => {
     xp: 0,
   });
   sessions.set(sessionId, state);
+  void initializeAgents(state);
 
   const response: StartGameResponse = { sessionId, state };
   res.json(response);
