@@ -5,6 +5,38 @@
  */
 
 /**
+ * 生成标准化的系统提示词。
+ *
+ * @param characterName - 角色全名，如 `怪物.骷髅战士`（不含"角色."前缀）
+ * @param gameSetting   - 游戏世界观与核心机制说明（多行文本）
+ * @param globalRules   - 全局角色扮演规则（多行文本）
+ * @param characterSetting - 角色个体设定（多行文本）
+ */
+export function buildSystemPrompt(
+  characterName: string,
+  gameSetting: string,
+  globalRules: string,
+  characterSetting: string,
+): string {
+  const fullName = `角色.${characterName}`;
+  return `# ${fullName}
+
+你扮演角色: ${fullName}
+
+## 游戏设定
+
+${gameSetting}
+
+## 全局规则
+
+${globalRules}
+
+## 角色设定
+
+${characterSetting}`.trim();
+}
+
+/**
  * 构建完整的回合任务提示词，供 `AgentTask` 使用。
  *
  * @param turn - 当前回合数。

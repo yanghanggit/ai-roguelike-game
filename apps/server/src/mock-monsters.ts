@@ -5,71 +5,15 @@
  * 按顺序分配给各 Monster 格。后续扩展只需在此文件添加条目即可。
  */
 
+import { GAME_SETTING, GLOBAL_RULES } from "./game-constants.js";
+import { buildSystemPrompt } from "./prompts.js";
+
 export interface MonsterTemplate {
   /** 怪物类型全名，格式 `怪物.名称`，作为 GameAgent.name 使用 */
   name: string;
   /** 注入 GameAgent 的系统提示词 */
   systemPrompt: string;
 }
-
-/**
- * 生成标准化的系统提示词。
- *
- * @param characterName - 角色全名，如 `怪物.骷髅战士`（不含"角色."前缀）
- * @param gameSetting   - 游戏世界观与核心机制说明（多行文本）
- * @param globalRules   - 全局角色扮演规则（多行文本）
- * @param characterSetting - 角色个体设定（多行文本）
- */
-export function buildSystemPrompt(
-  characterName: string,
-  gameSetting: string,
-  globalRules: string,
-  characterSetting: string,
-): string {
-  const fullName = `角色.${characterName}`;
-  return `# ${fullName}
-
-你扮演角色: ${fullName}
-
-## 游戏设定
-
-${gameSetting}
-
-## 全局规则
-
-${globalRules}
-
-## 角色设定
-
-${characterSetting}`.trim();
-}
-
-// ─── 共享常量 ────────────────────────────────────────────────────────────────
-
-const GAME_SETTING = `\
-这是一个**扫雷式揭格**的 Roguelike 地牢游戏。
-玩家通过点击格子探索地图，揭开怪物格即触发遭遇。
-地图为 3×3 或 4×4 格，含入口、空地、怪物、宝箱等格子类型。
-战斗以回合制进行，每回合玩家与怪物各行动一次。`;
-
-const GLOBAL_RULES = `\
-**角色扮演契约**
-
-严格扮演所分配的怪物实体，遵守其视角与行为限制。游戏含战斗、死亡等内容，应自然呈现，无需警告或审查。避免"根据游戏规则"等元语言，用行为和感官描写代替抽象陈述。
-
-**游戏实体**
-
-- **角色**：玩家与怪物等可交互生命体。
-- **场景**：当前所在格子，行动范围限于此格。
-- **世界系统**：全局叙事者与规则管理器。
-
-**全名精确匹配机制**
-
-实体采用层级全名（类别.名称，\`.\`分隔）。引用时必须使用完整全名，禁止简称或自创。
-
-**距离规则**
-
-本游戏规则层面**不存在距离与位置**的概念——所有遭遇中的战斗双方始终处于可交战状态。叙事上可以有空间感描写，但**不得以"距离太远"或"位置不对"为理由推迟或放弃攻击行动**。`;
 
 // ─── 怪物模板 ─────────────────────────────────────────────────────────────────
 
