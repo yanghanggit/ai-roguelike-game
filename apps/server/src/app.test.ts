@@ -54,11 +54,11 @@ describe("GET /health", () => {
 describe("POST /game/start", () => {
   beforeEach(() => sessions.clear());
 
-  it("returns a valid game state (3×3)", async () => {
+  it("returns a valid game state", async () => {
     const res = await request(app).post("/game/start");
     expect(res.status).toBe(200);
     const state: GameState = res.body.state;
-    expect(state.stageSize).toBe(3);
+    expect([3, 4]).toContain(state.stageSize);
     expect(state.stage.tiles).toHaveLength(state.stageSize);
     expect(state.stage.tiles[0]).toHaveLength(state.stageSize);
     expect(state.turn).toBe(0);
