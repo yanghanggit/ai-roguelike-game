@@ -41,13 +41,11 @@ export const queryStatusTool: AgentTool = {
   handler(args: Record<string, string>, agent: GameAgent, state: GameState): ToolHandlerResult {
     const target = typeof args["target"] === "string" ? args["target"] : "player";
 
-    if (target === "player") {
-      return {
-        message: `玩家状态：HP ${state.player.hp}/${state.player.maxHp}，攻击 ${state.player.attack}，防御 ${state.player.defense}。`,
-      };
-    }
+    let result: string;
 
-    if (target === "dungeon") {
+    if (target === "player") {
+      result = `玩家状态：HP ${state.player.hp}/${state.player.maxHp}，攻击 ${state.player.attack}，防御 ${state.player.defense}。`;
+    } else if (target === "dungeon") {
       const revealedCount = state.map.flat().filter((t) => t.revealed).length;
       const totalCount = state.mapSize * state.mapSize;
       const activeMonsters = Object.keys(state.activatedTurns)
@@ -59,18 +57,20 @@ export const queryStatusTool: AgentTool = {
         activeMonsters.length > 0
           ? `已激活怪物：${activeMonsters.join("、")}。`
           : "当前无其他激活怪物。";
-      return { message: `地下城概览：已揭开 ${revealedCount}/${totalCount} 格。${monsterText}` };
+      result = `地下城概览：已揭开 ${revealedCount}/${totalCount} 格。${monsterText}`;
+    } else {
+      // 指定怪物名字
+      const found = Object.values(state.agents).find(
+        (a) => a !== undefined && extractLabel((a as GameAgent).name) === target,
+      ) as GameAgent | undefined;
+      result = found
+        ? `怪物「${target}」已激活，正在地下城中行动。`
+        : `未找到名为「${target}」的目标。`;
     }
 
-    // 指定怪物名字
-    const found = Object.values(state.agents).find(
-      (a) => a !== undefined && extractLabel((a as GameAgent).name) === target,
-    ) as GameAgent | undefined;
-    return {
-      message: found
-        ? `怪物「${target}」已激活，正在地下城中行动。`
-        : `未找到名为「${target}」的目标。`,
-    };
+    const message = `${extractLabel(agent.name)}：${result}`;
+    state.log = [...state.log, { turn: state.turn, message }];
+    return { message: result };
   },
 };
 
