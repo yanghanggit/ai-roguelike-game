@@ -6,7 +6,7 @@ import { createRandomMap, createDevMap } from "./game-map.js";
 import { initializeGame } from "./game.js";
 import { applyReveal } from "./game-actions.js";
 import { GameAgent } from "./ai/game-agent.js";
-import { saveGameState, loadGameState, loadLatestGameState } from "./game-persistence.js";
+import { saveGameState, loadGameState } from "./game-persistence.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
 
@@ -98,19 +98,4 @@ describe("game-persistence", () => {
     expect(agent).toBeInstanceOf(GameAgent);
   });
 
-  // ─── loadLatestGameState ──────────────────────────────────────────────────────
-
-  it("loadLatestGameState 读取最新存档目录", async () => {
-    const s1 = initializeGame("first", createRandomMap(4), DEFAULT_PLAYER);
-    const s2 = initializeGame("second", createRandomMap(4), DEFAULT_PLAYER);
-    saveGameState(s1, tmpDir);
-    await new Promise((r) => setTimeout(r, 5));
-    saveGameState(s2, tmpDir);
-    const latest = loadLatestGameState(tmpDir);
-    expect(latest.sessionId).toBe("second");
-  });
-
-  it("loadLatestGameState 在目录为空时抛出错误", () => {
-    expect(() => loadLatestGameState(tmpDir)).toThrow();
-  });
 });

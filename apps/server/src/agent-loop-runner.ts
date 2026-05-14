@@ -85,7 +85,12 @@ const AGENT_LOOP_MAX_ROUNDS = 6;
  * @returns 完整的任务提示词字符串。
  */
 export function buildTurnTaskPrompt(eventSummary: string): string {
-  return `本回合事件：${eventSummary}`;
+  return `本回合事件：${eventSummary}
+
+行动规则（严格遵守）：
+1. 可先用 query_status 查询形势（"player" / "dungeon" / 怪物名），收集信息后再决策。
+2. 若决定攻击，必须调用 strike 工具，填写 target 与 summary；**禁止在消息正文中描述攻击，只有 strike 调用才被系统识别为真实攻击**。
+3. 若本回合无需行动，直接停止输出（不调用任何工具）。`;
 }
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────

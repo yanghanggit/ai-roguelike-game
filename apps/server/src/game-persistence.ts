@@ -69,34 +69,11 @@ function reconstructAgents(state: GameState): GameState {
 }
 
 /**
- * 从指定存档目录加载存档，适合已知目录名时的精确读取。
+ * 从指定存档目录加载存档。
  *
- * @param folderPath - 存档目录的绝对或相对路径。
+ * @param folderPath - 存档目录的绝对路径（即 `saveGameState` 返回的路径）。
  * @returns 反序列化后的 `GameState` 对象（agents 已重建为 class 实例）。
  */
 export function loadGameState(folderPath: string): GameState {
   return reconstructAgents(fse.readJsonSync(path.join(folderPath, "state.json")) as GameState);
-}
-
-/**
- * 从 `savesDir` 中读取最新的存档目录。
- *
- * 按字典序排序目录名，ISO 时间戳天然可按时间排序。
- * 目录为空时抛出错误。
- *
- * @param savesDir - 存档根目录路径。
- * @returns 最新存档反序列化后的 `GameState` 对象（agents 已重建为 class 实例）。
- * @throws 若目录中不存在符合命名规则的存档目录。
- */
-export function loadLatestGameState(savesDir: string): GameState {
-  const dirs = fse
-    .readdirSync(savesDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && d.name.startsWith("game-state-"))
-    .map((d) => d.name)
-    .sort();
-  if (dirs.length === 0) {
-    throw new Error(`saves 目录中没有找到存档目录：${savesDir}`);
-  }
-  const latest = dirs[dirs.length - 1]!;
-  return loadGameState(path.join(savesDir, latest));
 }

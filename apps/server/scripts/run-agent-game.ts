@@ -29,7 +29,7 @@ import {
 } from "../src/game-actions.js";
 import { buildTurnTaskPrompt, runAgentLoops } from "../src/agent-loop-runner.js";
 import { GameAgent } from "../src/ai/game-agent.js";
-import { saveGameState, loadLatestGameState } from "../src/game-persistence.js";
+import { saveGameState, loadGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -105,7 +105,8 @@ const program = new Command();
 program
   .name("run-agent-game")
   .description("Agent Game CLI — 每条命令是一个原子操作，状态通过 JSON 文件传递")
-  .version("0.0.1");
+  .version("0.0.1")
+  .option("-s, --save <path>", "要加载的存档目录路径（save 命令输出的目录）");
 
 // ─── start ────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ program
     const savedPath = saveGameState(state, SAVES_DIR);
 
     logger.info({ sessionId, savedPath }, "新游戏已创建");
+    logger.info(`\n下次操作请传入：--save ${savedPath}`);
     printMap(state);
     printPlayer(state);
     printUnrevealed(state);
@@ -160,6 +162,7 @@ program
     const savedPath = saveGameState(state, SAVES_DIR);
 
     logger.info({ sessionId, savedPath }, "【开发模式】固定地图已创建");
+    logger.info(`\n下次操作请传入：--save ${savedPath}`);
     printMap(state);
     printPlayer(state);
     printUnrevealed(state);
@@ -171,12 +174,16 @@ program
   .command("status")
   .description("读取当前状态，打印地图与玩家信息")
   .action(() => {
+    const savePath: string | undefined = program.opts().save;
+    if (!savePath) {
+      logger.error("请通过 --save <path> 指定要加载的存档目录");
+      process.exit(1);
+    }
     let state: GameState;
     try {
-      // 读取最新状态
-      state = loadLatestGameState(SAVES_DIR);
+      state = loadGameState(savePath);
     } catch (err) {
-      logger.error({ savesDir: SAVES_DIR }, "找不到存档文件，请先运行 start");
+      logger.error({ savePath }, "无法读取存档，请检查路径是否正确");
       process.exit(1);
     }
 
@@ -206,11 +213,16 @@ program
       process.exit(1);
     }
 
+    const savePath: string | undefined = program.opts().save;
+    if (!savePath) {
+      logger.error("请通过 --save <path> 指定要加载的存档目录");
+      process.exit(1);
+    }
     let state: GameState;
     try {
-      state = loadLatestGameState(SAVES_DIR);
+      state = loadGameState(savePath);
     } catch (err) {
-      logger.error({ savesDir: SAVES_DIR }, "找不到存档文件，请先运行 start");
+      logger.error({ savePath }, "无法读取存档，请检查路径是否正确");
       process.exit(1);
     }
 
@@ -251,6 +263,7 @@ program
     //  保存当前状态为新存档，形成时间线快照
     const savedPath = saveGameState(state, SAVES_DIR);
     logger.info({ x, y, tileType: result.tileType, phase: state.phase, savedPath }, "格子已揭开");
+    logger.info(`\n下次操作请传入：--save ${savedPath}`);
 
     if (result.message) {
       logger.info(`✓ (${x},${y})：${result.tileType}  →  ${result.message}`);
@@ -277,12 +290,17 @@ program
   .command("dungeon-advance")
   .description("触发所有已激活 agent 的 AI 推理，phase 切回 player（对应 /game/dungeon-advance）")
   .action(async () => {
+    const savePath: string | undefined = program.opts().save;
+    if (!savePath) {
+      logger.error("请通过 --save <path> 指定要加载的存档目录");
+      process.exit(1);
+    }
     let state: GameState;
     try {
-      // 读取最新状态，触发 agent 推理，保存新状态
-      state = loadLatestGameState(SAVES_DIR);
+      // 读取指定存档，触发 agent 推理，保存新状态
+      state = loadGameState(savePath);
     } catch (err) {
-      logger.error({ savesDir: SAVES_DIR }, "找不到存档文件，请先运行 start");
+      logger.error({ savePath }, "无法读取存档，请检查路径是否正确");
       process.exit(1);
     }
 
@@ -302,6 +320,7 @@ program
     // 保存当前状态为新存档，形成时间线快照
     const savedPath = saveGameState(state, SAVES_DIR);
     logger.info({ turn: state.turn, savedPath }, `地下城推进完成 — phase → "player"`);
+    logger.info(`\n下次操作请传入：--save ${savedPath}`);
 
     printLog(state);
     printMap(state);
