@@ -7,7 +7,6 @@
 
 import type { GameState } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
-import { extractLabel } from "./utils.js";
 import type { AgentTool, ToolHandlerResult } from "./agent-task.js";
 
 // ─── query_status ─────────────────────────────────────────────────────────────
@@ -52,7 +51,7 @@ export const queryStatusTool: AgentTool = {
         .filter((name) => name !== agent.name)
         .map((name) => state.agents[name])
         .filter((a): a is GameAgent => a !== undefined)
-        .map((a) => extractLabel(a.name));
+        .map((a) => a.name);
       const monsterText =
         activeMonsters.length > 0
           ? `已激活怪物：${activeMonsters.join("、")}。`
@@ -61,14 +60,14 @@ export const queryStatusTool: AgentTool = {
     } else {
       // 指定怪物名字
       const found = Object.values(state.agents).find(
-        (a) => a !== undefined && extractLabel((a as GameAgent).name) === target,
+        (a) => a !== undefined && (a as GameAgent).name === target,
       ) as GameAgent | undefined;
       result = found
         ? `怪物「${target}」已激活，正在地下城中行动。`
         : `未找到名为「${target}」的目标。`;
     }
 
-    const message = `${extractLabel(agent.name)}：${result}`;
+    const message = `${agent.name}：${result}`;
     state.log = [...state.log, { turn: state.turn, message }];
     return { message: result };
   },
@@ -107,7 +106,7 @@ export const strikeTool: AgentTool = {
       typeof args["summary"] === "string" && args["summary"].trim().length > 0
         ? args["summary"].trim()
         : "发动了攻击。";
-    const message = `${extractLabel(agent.name)}：${summary}`;
+    const message = `${agent.name}：${summary}`;
     state.log = [...state.log, { turn: state.turn, message }];
     return { message: "【行动结果/strike】你的出手已被系统记录，等待下一回合。", endTurn: true };
   },

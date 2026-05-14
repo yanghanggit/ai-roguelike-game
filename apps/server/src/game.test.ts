@@ -321,7 +321,7 @@ describe("triggerAgentThinking", () => {
       maxRounds: AGENT_LOOP_MAX_ROUNDS,
     });
     await runAgentLoops(getActiveAgents(state), task, state);
-    expect(state.log[state.log.length - 1]!.message).toBe("骷髅战士：怪物发动攻击！");
+    expect(state.log[state.log.length - 1]!.message).toBe("怪物.骷髅战士：怪物发动攻击！");
   });
 
   it("多个 agent 的 AI 行动全部追加到 log", async () => {
@@ -377,8 +377,8 @@ describe("triggerAgentThinking", () => {
       maxRounds: AGENT_LOOP_MAX_ROUNDS,
     });
     await runAgentLoops(getActiveAgents(state), task, state);
-    expect(state.log.map((e) => e.message)).toContain("骷髅战士：怪物A攻击！");
-    expect(state.log.map((e) => e.message)).toContain("测试怪物：怪物B防御！");
+    expect(state.log.map((e) => e.message)).toContain("怪物.骷髅战士：怪物A攻击！");
+    expect(state.log.map((e) => e.message)).toContain("怪物.测试怪物：怪物B防御！");
   });
 
   it("AI 行动内容追加到 log 后总长度增加", async () => {

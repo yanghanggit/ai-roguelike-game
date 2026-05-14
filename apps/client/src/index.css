@@ -163,10 +163,11 @@ body {
   align-items: flex-start;
   justify-content: flex-start;
   padding: 4px 5px;
-  font-size: 0.55rem;
+  font-size: 0.9rem;
   font-weight: normal;
   line-height: 1.35;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* Tile type colours */

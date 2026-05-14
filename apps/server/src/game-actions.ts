@@ -9,7 +9,6 @@ import type { GameState, Terrain } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
-import { extractLabel } from "./utils.js";
 import { TERRAIN_LOG_MESSAGES, ACTOR_LOG_MESSAGES } from "./game-stage.js";
 import { logger } from "./logger.js";
 
@@ -56,7 +55,7 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
     : TERRAIN_LOG_MESSAGES[tile.terrain.type];
   if (tile.actor?.type === ActorType.Monster) {
     const agent = state.agents[tile.actor.name];
-    if (agent) message = `${message}==>【${extractLabel(agent.name)}】`;
+    if (agent) message = `${message}==>【${agent.name}】`;
   }
   state.log = [...state.log, { turn: state.turn, message }];
 
