@@ -16,7 +16,7 @@ import type {
 } from "@roguelike/shared";
 import { pushStateToClients, registerSseRoute } from "./sse.js";
 import { createRandomMap } from "./game-map.js";
-import { createInitialState } from "./game.js";
+import { initializeGame } from "./game.js";
 import {
   applyReveal,
   activateAgent,
@@ -59,7 +59,7 @@ app.post("/game/start", async (_req, res) => {
   const sessionId = crypto.randomUUID();
 
   // 初始状态：
-  const state = createInitialState(sessionId, createRandomMap(4), {
+  const state = initializeGame(sessionId, createRandomMap(3), {
     hp: 20,
     maxHp: 20,
     attack: 5,

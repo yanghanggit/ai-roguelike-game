@@ -21,7 +21,7 @@ import { MOCK_MONSTERS, extractLabel } from "./mock-monsters.js";
  * @param player - 玩家初始属性对象，直接存入状态不做拷贝。
  * @returns 完整的初始 `GameState`，`turn` 为 0，`log` 为空数组。
  */
-export function createInitialState(sessionId: string, map: GameMap, player: Player): GameState {
+export function initializeGame(sessionId: string, map: GameMap, player: Player): GameState {
   const mapSize = map.length as MapSize;
 
   const agents: Record<string, GameAgent> = {};

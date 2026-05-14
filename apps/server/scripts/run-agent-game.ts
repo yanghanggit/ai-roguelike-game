@@ -18,7 +18,7 @@ import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
 import { GLYPHS, createDevMap, createRandomMap } from "../src/game-map.js";
-import { createInitialState } from "../src/game.js";
+import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
   activateAgent,
@@ -115,7 +115,7 @@ program
   .action(async () => {
     // 创建新游戏状态，使用随机地图与初始玩家属性
     const sessionId = crypto.randomUUID();
-    const state = createInitialState(sessionId, createRandomMap(4), {
+    const state = initializeGame(sessionId, createRandomMap(4), {
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -144,7 +144,7 @@ program
   .action(async () => {
     // 与 start 命令类似，但使用 createDevMap 生成固定地图，便于测试与调试
     const sessionId = crypto.randomUUID();
-    const state = createInitialState(sessionId, createDevMap(), {
+    const state = initializeGame(sessionId, createDevMap(), {
       hp: 20,
       maxHp: 20,
       attack: 5,

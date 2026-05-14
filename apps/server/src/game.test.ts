@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
-import { createInitialState } from "./game.js";
+import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent } from "./game-actions.js";
 import { buildTurnTaskPrompt, runAgentLoops } from "./agent-loop-runner.js";
 
@@ -112,34 +112,34 @@ describe("createRandomMap", () => {
 
 describe("createInitialState", () => {
   it("sessionId 被正确赋值", () => {
-    const state = createInitialState("abc-123", createRandomMap(4), DEFAULT_PLAYER);
+    const state = initializeGame("abc-123", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.sessionId).toBe("abc-123");
   });
 
   it("初始 turn=0、phase=player", () => {
-    const state = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const state = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
 
   it("mapSize 为 4", () => {
-    const state = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const state = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(state.mapSize).toBe(4);
   });
 
   it("玩家初始属性与传入一致", () => {
-    const { player } = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const { player } = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(player).toEqual(DEFAULT_PLAYER);
   });
 
   it("初始日志为空", () => {
-    const { log } = createInitialState("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const { log } = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
     expect(log).toHaveLength(0);
   });
 
   it("两次调用生成不同的地图（随机性验证）", () => {
-    const s1 = createInitialState("a", createRandomMap(4), DEFAULT_PLAYER);
-    const s2 = createInitialState("b", createRandomMap(4), DEFAULT_PLAYER);
+    const s1 = initializeGame("a", createRandomMap(4), DEFAULT_PLAYER);
+    const s2 = initializeGame("b", createRandomMap(4), DEFAULT_PLAYER);
     // 有极低概率两张地图完全相同，但 16 格分布几乎不可能
     const types1 = s1.map
       .flat()
@@ -156,10 +156,10 @@ describe("createInitialState", () => {
 // ─── applyReveal ─────────────────────────────────────────────────────────────
 
 describe("applyReveal", () => {
-  let state: ReturnType<typeof createInitialState>;
+  let state: ReturnType<typeof initializeGame>;
 
   beforeEach(() => {
-    state = createInitialState("test-session", createRandomMap(4), DEFAULT_PLAYER);
+    state = initializeGame("test-session", createRandomMap(4), DEFAULT_PLAYER);
   });
 
   it("揭开未揭格子：ok=true，tileType 有值，message 有值", () => {
@@ -249,7 +249,7 @@ describe("applyReveal", () => {
 
 describe("activateMonsterAgent", () => {
   it("将指定 agentName 的 GameAgent 设为 激活", () => {
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
     expect(state.activatedTurns["monster-0-1"]).toBeUndefined();
     activateAgent(state, "monster-0-1");
@@ -257,7 +257,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     const countBefore = Object.keys(state.agents).length;
     activateAgent(state, "monster-0-1");
     activateAgent(state, "monster-0-1");
@@ -266,7 +266,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
     expect(Object.keys(state.activatedTurns)).toHaveLength(0);
@@ -286,7 +286,7 @@ describe("triggerAgentThinking", () => {
   });
 
   it("agents 均未激活时什么都不做，log 不变", async () => {
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
     const task = buildTurnTaskPrompt("第 1 回合，玩家揭开了一个新格子。");
@@ -317,7 +317,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
     activateAgent(state, "monster-0-1");
@@ -356,7 +356,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
@@ -393,7 +393,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = createInitialState("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;
