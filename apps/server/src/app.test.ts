@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app, sessions } from "./app.js";
-import { createRandomStage } from "./game-stage.js";
+import { createDevStage } from "./game-stage.js";
 import { Actor } from "./actor.js";
 import { Terrain } from "./terrain.js";
 import type { GameState } from "@roguelike/shared";
@@ -56,11 +56,11 @@ describe("GET /health", () => {
 describe("POST /game/start", () => {
   beforeEach(() => sessions.clear());
 
-  it("returns a valid game state (3×3 or 4×4)", async () => {
+  it("returns a valid game state (3×3)", async () => {
     const res = await request(app).post("/game/start");
     expect(res.status).toBe(200);
     const state: GameState = res.body.state;
-    expect([3, 4]).toContain(state.stageSize);
+    expect(state.stageSize).toBe(3);
     expect(state.stage.tiles).toHaveLength(state.stageSize);
     expect(state.stage.tiles[0]).toHaveLength(state.stageSize);
     expect(state.turn).toBe(0);
@@ -171,25 +171,17 @@ describe("POST /game/player-action — reveal", () => {
   });
 });
 
-describe("createRandomStage", () => {
-  it("creates a 3×3 map with at least 1 entrance", () => {
-    const stage = createRandomStage(3);
+describe("createDevStage", () => {
+  it("creates a 3×3 map with 1 entrance", () => {
+    const stage = createDevStage();
     expect(stage.tiles).toHaveLength(3);
     expect(stage.tiles[0]).toHaveLength(3);
     const entrances = stage.tiles.flat().filter((t) => t.terrain.type === "entrance").length;
     expect(entrances).toBeGreaterThanOrEqual(1);
   });
 
-  it("creates a 4×4 map with at least 2 entrances", () => {
-    const stage = createRandomStage(4);
-    expect(stage.tiles).toHaveLength(4);
-    expect(stage.tiles[0]).toHaveLength(4);
-    const entrances = stage.tiles.flat().filter((t) => t.terrain.type === "entrance").length;
-    expect(entrances).toBeGreaterThanOrEqual(2);
-  });
-
   it("all tiles start unrevealed", () => {
-    const stage = createRandomStage(4);
+    const stage = createDevStage();
     expect(stage.tiles.flat().every((t) => !t.revealed)).toBe(true);
   });
 });

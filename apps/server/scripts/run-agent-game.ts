@@ -17,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { createDevStage, createRandomStage } from "../src/game-stage.js";
+import { createDevStage } from "../src/game-stage.js";
 import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
@@ -111,11 +111,11 @@ program
 
 program
   .command("start")
-  .description("创建随机新游戏，保存存档到 saves/")
+  .description("创建新游戏，保存存档到 saves/")
   .action(async () => {
-    // 创建新游戏状态，使用随机地图与初始玩家属性
+    // 创建新游戏状态，使用固定地图与初始玩家属性
     const sessionId = crypto.randomUUID();
-    const state = initializeGame(sessionId, createRandomStage(4), {
+    const state = initializeGame(sessionId, createDevStage(), {
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -261,11 +261,23 @@ program
 
     //  保存当前状态为新存档，形成时间线快照
     const savedPath = saveGameState(state, SAVES_DIR);
-    logger.info({ x, y, terrain: result.terrain?.type, actorType: result.actorType, phase: state.phase, savedPath }, "格子已揭开");
+    logger.info(
+      {
+        x,
+        y,
+        terrain: result.terrain?.type,
+        actorType: result.actorType,
+        phase: state.phase,
+        savedPath,
+      },
+      "格子已揭开",
+    );
     logger.info(`\n下次操作请传入：--save ${savedPath}`);
 
     if (result.message) {
-      logger.info(`✓ (${x},${y})：${result.actorType ?? result.terrain?.type}  →  ${result.message}`);
+      logger.info(
+        `✓ (${x},${y})：${result.actorType ?? result.terrain?.type}  →  ${result.message}`,
+      );
     } else {
       logger.info(`  (${x},${y}) 已揭开，无变化`);
     }

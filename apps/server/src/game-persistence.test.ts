@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, beforeEach } from "vitest";
 import fse from "fs-extra";
-import { createRandomStage, createDevStage } from "./game-stage.js";
+import { createDevStage } from "./game-stage.js";
 import { initializeGame } from "./game.js";
 import { applyReveal } from "./game-actions.js";
 import { GameAgent } from "./game-agent.js";
@@ -20,14 +20,14 @@ describe("game-persistence", () => {
   // ─── saveGameState ────────────────────────────────────────────────────────────
 
   it("saveGameState 返回存档目录路径，目录名包含时间戳前缀", () => {
-    const state = initializeGame("persist-1", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("persist-1", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
     expect(fse.statSync(savedDir).isDirectory()).toBe(true);
     expect(path.basename(savedDir)).toMatch(/^game-state-/);
   });
 
   it("存档目录包含 state.json", () => {
-    const state = initializeGame("persist-2", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("persist-2", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
     expect(fse.existsSync(path.join(savedDir, "state.json"))).toBe(true);
   });
@@ -35,16 +35,16 @@ describe("game-persistence", () => {
   it("存档目录为每个 agent 生成 .json 与 _buffer.md", () => {
     const state = initializeGame("persist-agents", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
-    // dev 地图有 1 个 monster，key = "monster-0-1"
-    expect(fse.existsSync(path.join(savedDir, "monster-0-1.json"))).toBe(true);
-    expect(fse.existsSync(path.join(savedDir, "monster-0-1_buffer.md"))).toBe(true);
+    // dev 地图有 1 个 monster，key = "怪物.骷髅战士"
+    expect(fse.existsSync(path.join(savedDir, "怪物.骷髅战士.json"))).toBe(true);
+    expect(fse.existsSync(path.join(savedDir, "怪物.骷髅战士_buffer.md"))).toBe(true);
   });
 
   it("_buffer.md 使用 agent.name 作为 AI 前缀，System 前缀保持不变", () => {
     const state = initializeGame("buffer-prefix", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
-    const agentName = state.agents["monster-0-1"]!.name;
-    const bufferContent = fse.readFileSync(path.join(savedDir, "monster-0-1_buffer.md"), "utf8");
+    const agentName = state.agents["怪物.骷髅战士"]!.name;
+    const bufferContent = fse.readFileSync(path.join(savedDir, "怪物.骷髅战士_buffer.md"), "utf8");
     const lines = bufferContent.split("\n");
     const aiLines = lines.filter((l) => l.startsWith(`${agentName}: `));
     const systemLines = lines.filter((l) => l.startsWith("System: "));
@@ -56,13 +56,13 @@ describe("game-persistence", () => {
 
   it("saveGameState 若目录不存在则自动创建", () => {
     const nestedDir = path.join(tmpDir, "deep", "nested");
-    const state = initializeGame("nested", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("nested", createDevStage(), DEFAULT_PLAYER);
     saveGameState(state, nestedDir);
     expect(fse.readdirSync(nestedDir).length).toBeGreaterThan(0);
   });
 
   it("多次 save 产生多个子目录", async () => {
-    const state = initializeGame("multi", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("multi", createDevStage(), DEFAULT_PLAYER);
     saveGameState(state, tmpDir);
     await new Promise((r) => setTimeout(r, 5));
     applyReveal(state, 0, 0);
@@ -74,16 +74,16 @@ describe("game-persistence", () => {
   // ─── loadGameState ────────────────────────────────────────────────────────────
 
   it("loadGameState 能从目录还原 GameState", () => {
-    const state = initializeGame("load-1", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("load-1", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
     const loaded = loadGameState(savedDir);
     expect(loaded.sessionId).toBe("load-1");
-    expect(loaded.stageSize).toBe(4);
+    expect(loaded.stageSize).toBe(3);
     expect(loaded.player.hp).toBe(20);
   });
 
   it("保存后再修改状态，loadGameState 读出的仍是保存时的快照", () => {
-    const state = initializeGame("snapshot-test", createRandomStage(4), DEFAULT_PLAYER);
+    const state = initializeGame("snapshot-test", createDevStage(), DEFAULT_PLAYER);
     const savedDir = saveGameState(state, tmpDir);
     applyReveal(state, 0, 0);
     const loaded = loadGameState(savedDir);
