@@ -2,9 +2,21 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
-import { TileType } from "@roguelike/shared";
-import { GLYPHS, LOG_MESSAGES, createRandomStage, createDevStage } from "./game-stage.js";
+import {
+  TerrainType,
+  ActorType,
+  getTileGlyph,
+  TERRAIN_GLYPHS,
+  ACTOR_GLYPHS,
+} from "@roguelike/shared";
+import {
+  TERRAIN_LOG_MESSAGES,
+  ACTOR_LOG_MESSAGES,
+  createRandomStage,
+  createDevStage,
+} from "./game-stage.js";
 import { Actor } from "./actor.js";
+import { Terrain } from "./terrain.js";
 import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
 import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
@@ -14,23 +26,30 @@ import { queryStatusTool, strikeTool } from "./agent-tools.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
 
-// ─── GLYPHS ───────────────────────────────────────────────────────────────────
+// ─── TERRAIN_GLYPHS ─────────────────────────────────────────────────────
 
-describe("GLYPHS", () => {
-  it("每种 TileType 都有对应的 glyph", () => {
-    for (const type of Object.values(TileType)) {
-      expect(GLYPHS[type]).toBeDefined();
+describe("TERRAIN_GLYPHS", () => {
+  it("每种 TerrainType 都有对应的 glyph", () => {
+    for (const type of Object.values(TerrainType)) {
+      expect(TERRAIN_GLYPHS[type]).toBeDefined();
     }
   });
 });
 
-// ─── LOG_MESSAGES ─────────────────────────────────────────────────────────────
+// ─── LOG_MESSAGES ─────────────────────────────────────────────────────
 
 describe("LOG_MESSAGES", () => {
-  it("每种 TileType 都有对应的中文消息", () => {
-    for (const type of Object.values(TileType)) {
-      expect(typeof LOG_MESSAGES[type]).toBe("string");
-      expect(LOG_MESSAGES[type].length).toBeGreaterThan(0);
+  it("每种 TerrainType 都有对应的中文消息", () => {
+    for (const type of Object.values(TerrainType)) {
+      expect(typeof TERRAIN_LOG_MESSAGES[type]).toBe("string");
+      expect(TERRAIN_LOG_MESSAGES[type].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("每种 ActorType 都有对应的中文消息", () => {
+    for (const type of Object.values(ActorType)) {
+      expect(typeof ACTOR_LOG_MESSAGES[type]).toBe("string");
+      expect(ACTOR_LOG_MESSAGES[type].length).toBeGreaterThan(0);
     }
   });
 });
@@ -52,13 +71,13 @@ describe("createRandomStage", () => {
 
   it("3×3 地图包含恰好 1 个 Entrance", () => {
     const stage = createRandomStage(3);
-    const count = stage.tiles.flat().filter((t) => t.type === TileType.Entrance).length;
+    const count = stage.tiles.flat().filter((t) => t.terrain.type === TerrainType.Entrance).length;
     expect(count).toBe(1);
   });
 
   it("4×4 地图包含恰好 2 个 Entrance", () => {
     const stage = createRandomStage(4);
-    const count = stage.tiles.flat().filter((t) => t.type === TileType.Entrance).length;
+    const count = stage.tiles.flat().filter((t) => t.terrain.type === TerrainType.Entrance).length;
     expect(count).toBe(2);
   });
 
@@ -67,21 +86,24 @@ describe("createRandomStage", () => {
     stage.tiles.flat().forEach((tile) => expect(tile.revealed).toBe(false));
   });
 
-  it("每个格子的 glyph 与 type 一致", () => {
+  it("每个格子的 glyph 与 terrain/actor 一致", () => {
     const stage = createRandomStage(4);
     stage.tiles.flat().forEach((tile) => {
-      expect(tile.glyph).toBe(GLYPHS[tile.type]);
+      const expected = tile.actor
+        ? ACTOR_GLYPHS[tile.actor.type]
+        : TERRAIN_GLYPHS[tile.terrain.type];
+      expect(getTileGlyph(tile)).toBe(expected);
     });
   });
 
-  it("所有 type 值都是合法的 TileType", () => {
-    const validTypes = new Set(Object.values(TileType));
+  it("所有格子的 terrain 是合法的 TerrainType", () => {
+    const validTerrains = new Set(Object.values(TerrainType));
     createRandomStage(4)
       .tiles.flat()
-      .forEach((tile) => expect(validTypes.has(tile.type)).toBe(true));
+      .forEach((tile) => expect(validTerrains.has(tile.terrain.type)).toBe(true));
   });
 
-  it("Monster 格子具有 actor，其 name 格式为 monster-x-y", () => {
+  it("Monster Actor 的 name 格式为 monster-x-y", () => {
     // 多次采样确保命中 Monster 格子
     let found = false;
     for (let attempt = 0; attempt < 30 && !found; attempt++) {
@@ -89,8 +111,8 @@ describe("createRandomStage", () => {
       for (let y = 0; y < 4; y++) {
         for (let x = 0; x < 4; x++) {
           const tile = stage.tiles[y]![x]!;
-          if (tile.type === TileType.Monster) {
-            expect(tile.actor?.name).toBe(`monster-${x}-${y}`);
+          if (tile.actor?.type === ActorType.Monster) {
+            expect(tile.actor.name).toBe(`monster-${x}-${y}`);
             found = true;
           }
         }
@@ -98,14 +120,12 @@ describe("createRandomStage", () => {
     }
   });
 
-  it("非 Monster 格子的 actor 为 undefined", () => {
-    let hasNonMonster = false;
-    for (let attempt = 0; attempt < 30 && !hasNonMonster; attempt++) {
+  it("有 Actor 的格子地形必为 Floor", () => {
+    for (let attempt = 0; attempt < 10; attempt++) {
       const stage = createRandomStage(4);
       for (const tile of stage.tiles.flat()) {
-        if (tile.type !== TileType.Monster) {
-          expect(tile.actor).toBeUndefined();
-          hasNonMonster = true;
+        if (tile.actor) {
+          expect(tile.terrain.type).toBe(TerrainType.Floor);
         }
       }
     }
@@ -147,11 +167,11 @@ describe("createInitialState", () => {
     // 有极低概率两张地图完全相同，但 16 格分布几乎不可能
     const types1 = s1.stage.tiles
       .flat()
-      .map((t) => t.type)
+      .map((t) => t.actor?.type ?? t.terrain.type)
       .join(",");
     const types2 = s2.stage.tiles
       .flat()
-      .map((t) => t.type)
+      .map((t) => t.actor?.type ?? t.terrain.type)
       .join(",");
     expect(types1).not.toBe(types2);
   });
@@ -166,10 +186,10 @@ describe("applyReveal", () => {
     state = initializeGame("test-session", createRandomStage(4), DEFAULT_PLAYER);
   });
 
-  it("揭开未揭格子：ok=true，tileType 有值，message 有值", () => {
+  it("揭开未揭格子：ok=true，terrain 有值，message 有值", () => {
     const result = applyReveal(state, 0, 0);
     expect(result.ok).toBe(true);
-    expect(result.tileType).toBeDefined();
+    expect(result.terrain).toBeDefined();
     expect(result.message).toBeDefined();
   });
 
@@ -226,23 +246,24 @@ describe("applyReveal", () => {
 
   it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
     const result = applyReveal(state, 0, 0);
-    const tileType = state.stage.tiles[0]![0]!.type;
-    expect(result.message).toContain(LOG_MESSAGES[tileType]);
+    const tile = state.stage.tiles[0]![0]!;
+    const expectedMsg = tile.actor
+      ? ACTOR_LOG_MESSAGES[tile.actor.type]
+      : TERRAIN_LOG_MESSAGES[tile.terrain.type];
+    expect(result.message).toContain(expectedMsg);
   });
 
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
     // 强制将 (0,0) 设为 Monster 格子后揭开
-    state.stage.tiles[0]![0]!.type = TileType.Monster;
-    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
-    state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Monster];
+    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0", ActorType.Monster);
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBe("monster-0-0");
   });
 
   it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
     // 强制将 (0,0) 设为 Floor 并清除 actor
-    state.stage.tiles[0]![0]!.type = TileType.Floor;
-    state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Floor];
+    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
     delete state.stage.tiles[0]![0]!.actor;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();

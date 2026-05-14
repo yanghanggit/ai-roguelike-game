@@ -1,6 +1,9 @@
-import type { Actor as IActor } from "@roguelike/shared";
+import type { Actor as IActor, ActorType } from "@roguelike/shared";
 
-/** 占据格子的实体（当前为怪物）的运行时表示。 */
+/** 占据格子的实体（怪物、宝箱、物品、特殊）的运行时表示。 */
 export class Actor implements IActor {
-  constructor(readonly name: string) {}
+  constructor(
+    readonly name: string,
+    public type: ActorType,
+  ) {}
 }

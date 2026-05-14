@@ -2,35 +2,71 @@ import type { StageSize } from "./config.js";
 export { PORTS, STAGE_SIZES } from "./config.js";
 export type { StageSize } from "./config.js";
 
-// ─── TileType ────────────────────────────────────────────────────────────────
+// ─── TerrainType ─────────────────────────────────────────────────────────────
 
-export const TileType = {
+export const TerrainType = {
   Floor: "floor",
   Wall: "wall",
   Entrance: "entrance",
+} as const;
+
+export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
+
+// ─── ActorType ────────────────────────────────────────────────────────────────
+
+export const ActorType = {
   Monster: "monster",
   Treasure: "treasure",
   Item: "item",
   Special: "special",
 } as const;
 
-export type TileType = (typeof TileType)[keyof typeof TileType];
+export type ActorType = (typeof ActorType)[keyof typeof ActorType];
+
+// ─── Glyphs ───────────────────────────────────────────────────────────────────
+
+export const TERRAIN_GLYPHS: Record<TerrainType, string> = {
+  [TerrainType.Floor]: ".",
+  [TerrainType.Wall]: "#",
+  [TerrainType.Entrance]: ">",
+};
+
+export const ACTOR_GLYPHS: Record<ActorType, string> = {
+  [ActorType.Monster]: "E",
+  [ActorType.Treasure]: "$",
+  [ActorType.Item]: "!",
+  [ActorType.Special]: "?",
+};
+
+// ─── Terrain ─────────────────────────────────────────────────────────────────
+
+/** 格子的地形信息：名称（显示用）与地形类型。 */
+export interface Terrain {
+  readonly name: string;
+  readonly type: TerrainType;
+}
 
 // ─── Actor ───────────────────────────────────────────────────────────────────
 
-/** 占据格子的实体（当前为怪物）。`name` 与 `GameState.agents` 中的键一致。 */
+/** 占据格子的实体（怪物、宝箱、物品、特殊）。`name` 与 `GameState.agents` 中的键一致。 */
 export interface Actor {
   readonly name: string;
+  type: ActorType;
 }
 
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
 export interface Tile {
-  type: TileType;
-  glyph: string;
+  terrain: Terrain;
   revealed: boolean;
-  /** Monster 格子专用：占据该格子的 Actor，其 name 用于在 GameState.agents 中查找上下文 */
   actor?: Actor;
+}
+
+// ─── Glyph ───────────────────────────────────────────────────────────────────
+
+/** 返回格子的显示字符：有 Actor 时取 Actor 字符，否则取地形字符。 */
+export function getTileGlyph(tile: Tile): string {
+  return tile.actor ? ACTOR_GLYPHS[tile.actor.type] : TERRAIN_GLYPHS[tile.terrain.type];
 }
 
 // ─── Stage ──────────────────────────────────────────────────────────────────

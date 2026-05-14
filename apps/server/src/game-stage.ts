@@ -5,51 +5,53 @@
  * 无副作用，无外部状态依赖。
  */
 
-import { TileType } from "@roguelike/shared";
+import { TerrainType, ActorType } from "@roguelike/shared";
 import type { Stage, StageSize, Tile } from "@roguelike/shared";
 import { Actor } from "./actor.js";
+import { Terrain } from "./terrain.js";
 
-// ─── Glyphs & weights ─────────────────────────────────────────────────────────
+// ─── Weights & messages ──────────────────────────────────────────────────────
 
-export const GLYPHS: Record<TileType, string> = {
-  [TileType.Floor]: ".",
-  [TileType.Wall]: "#",
-  [TileType.Entrance]: ">",
-  [TileType.Monster]: "E",
-  [TileType.Treasure]: "$",
-  [TileType.Item]: "!",
-  [TileType.Special]: "?",
+const TERRAIN_NAMES: Record<TerrainType, string> = {
+  [TerrainType.Floor]: "地板",
+  [TerrainType.Wall]: "墙壁",
+  [TerrainType.Entrance]: "入口",
 };
 
-const WEIGHTS: [TileType, number][] = [
-  [TileType.Floor, 40],
-  [TileType.Wall, 20],
-  [TileType.Monster, 20],
-  [TileType.Treasure, 10],
-  [TileType.Item, 5],
-  [TileType.Special, 5],
+const WEIGHTS: [TerrainType | ActorType, number][] = [
+  [TerrainType.Floor, 40],
+  [TerrainType.Wall, 20],
+  [ActorType.Monster, 20],
+  [ActorType.Treasure, 10],
+  [ActorType.Item, 5],
+  [ActorType.Special, 5],
 ];
 
-export const LOG_MESSAGES: Record<TileType, string> = {
-  [TileType.Floor]: "地面空无一物。",
-  [TileType.Wall]: "坚固的墙壁挡住了去路。",
-  [TileType.Entrance]: "通往下一层的入口！",
-  [TileType.Monster]: "一只怪物潜伏于此！",
-  [TileType.Treasure]: "一个宝箱在闪闪发光！",
-  [TileType.Item]: "你发现了一件物品！",
-  [TileType.Special]: "有些不寻常的东西在涌动……",
+export const TERRAIN_LOG_MESSAGES: Record<TerrainType, string> = {
+  [TerrainType.Floor]: "地面空无一物。",
+  [TerrainType.Wall]: "坚固的墙壁挡住了去路。",
+  [TerrainType.Entrance]: "通往下一层的入口！",
+};
+
+export const ACTOR_LOG_MESSAGES: Record<ActorType, string> = {
+  [ActorType.Monster]: "一只怪物潜伏于此！",
+  [ActorType.Treasure]: "一个宝箱在闪闪发光！",
+  [ActorType.Item]: "你发现了一件物品！",
+  [ActorType.Special]: "有些不寻常的东西在涌动……",
 };
 
 // ─── Map generation ───────────────────────────────────────────────────────────
 
-function weightedRandom(): TileType {
+const ACTOR_TYPE_VALUES = new Set<string>(Object.values(ActorType));
+
+function weightedRandom(): TerrainType | ActorType {
   const rand = Math.random() * 100;
   let cumulative = 0;
   for (const [type, weight] of WEIGHTS) {
     cumulative += weight;
     if (rand < cumulative) return type;
   }
-  return TileType.Floor;
+  return TerrainType.Floor;
 }
 
 /**
@@ -65,7 +67,10 @@ export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;
 
-  const pool: TileType[] = Array.from({ length: entranceCount }, (): TileType => TileType.Entrance);
+  const pool: (TerrainType | ActorType)[] = Array.from(
+    { length: entranceCount },
+    (): TerrainType => TerrainType.Entrance,
+  );
   for (let i = entranceCount; i < total; i++) pool.push(weightedRandom());
 
   // Fisher-Yates shuffle
@@ -78,12 +83,23 @@ export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
   for (let y = 0; y < size; y++) {
     const row: Tile[] = [];
     for (let x = 0; x < size; x++) {
-      const type = pool[y * size + x]!;
-      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
-      if (type === TileType.Monster) {
-        tile.actor = new Actor(`monster-${x}-${y}`);
+      const content = pool[y * size + x]!;
+      if (ACTOR_TYPE_VALUES.has(content)) {
+        const actorType = content as ActorType;
+        const terrainType = TerrainType.Floor;
+        const tile: Tile = {
+          terrain: new Terrain(TERRAIN_NAMES[terrainType], terrainType),
+          revealed: false,
+        };
+        tile.actor = new Actor(`${actorType}-${x}-${y}`, actorType);
+        row.push(tile);
+      } else {
+        const terrainType = content as TerrainType;
+        row.push({
+          terrain: new Terrain(TERRAIN_NAMES[terrainType], terrainType),
+          revealed: false,
+        });
       }
-      row.push(tile);
     }
     tiles.push(row);
   }
@@ -111,20 +127,30 @@ export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
  *   Floor     其余 9 格
  */
 export function createDevStage(name = "dev"): Stage {
-  const layout: TileType[][] = [
-    [TileType.Entrance, TileType.Floor, TileType.Wall, TileType.Floor],
-    [TileType.Monster, TileType.Floor, TileType.Floor, TileType.Treasure],
-    [TileType.Floor, TileType.Item, TileType.Wall, TileType.Floor],
-    [TileType.Floor, TileType.Floor, TileType.Floor, TileType.Special],
+  const layout: (TerrainType | ActorType)[][] = [
+    [TerrainType.Entrance, TerrainType.Floor, TerrainType.Wall, TerrainType.Floor],
+    [ActorType.Monster, TerrainType.Floor, TerrainType.Floor, ActorType.Treasure],
+    [TerrainType.Floor, ActorType.Item, TerrainType.Wall, TerrainType.Floor],
+    [TerrainType.Floor, TerrainType.Floor, TerrainType.Floor, ActorType.Special],
   ];
 
   const tiles = layout.map((row, y) =>
-    row.map((type, x) => {
-      const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
-      if (type === TileType.Monster) {
-        tile.actor = new Actor(`monster-${x}-${y}`);
+    row.map((content, x) => {
+      if (ACTOR_TYPE_VALUES.has(content)) {
+        const actorType = content as ActorType;
+        const terrainType = TerrainType.Floor;
+        const tile: Tile = {
+          terrain: new Terrain(TERRAIN_NAMES[terrainType], terrainType),
+          revealed: false,
+        };
+        tile.actor = new Actor(`${actorType}-${x}-${y}`, actorType);
+        return tile;
       }
-      return tile;
+      const terrainType = content as TerrainType;
+      return {
+        terrain: new Terrain(TERRAIN_NAMES[terrainType], terrainType),
+        revealed: false,
+      } satisfies Tile;
     }),
   );
   return { name, tiles };

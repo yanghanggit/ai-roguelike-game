@@ -17,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { GLYPHS, createDevStage, createRandomStage } from "../src/game-stage.js";
+import { createDevStage, createRandomStage } from "../src/game-stage.js";
 import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
@@ -35,6 +35,7 @@ import { queryStatusTool, strikeTool } from "../src/agent-tools.js";
 import { GameAgent } from "../src/game-agent.js";
 import { saveGameState, loadGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
+import { getTileGlyph } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
@@ -64,19 +65,13 @@ function printMap(state: GameState): void {
 
   for (let y = 0; y < size; y++) {
     const row = state.stage.tiles[y]!;
-    const cells = row.map((tile) => (tile.revealed ? ` ${tile.glyph}` : " ?")).join("");
+    const cells = row.map((tile) => (tile.revealed ? ` ${getTileGlyph(tile)}` : " ?")).join("");
     logger.info(` ${y} │${cells} │`);
   }
   logger.info("   +" + "──".repeat(size) + "+");
 
   // 图例
-  logger.info(
-    "\n图例：" +
-      Object.entries(GLYPHS)
-        .map(([, g]) => g)
-        .join(" ") +
-      "   ? = 未揭开",
-  );
+  logger.info("\n图例：. # > E $ ! ?   ? = 未揭开");
   logger.info("  . 地板  # 墙  > 入口  E:名称 怪物  $ 宝箱  ! 物品  ? 特殊\n");
 }
 

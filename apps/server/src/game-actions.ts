@@ -4,13 +4,13 @@
  * 负责格子揭开、agent 激活与基础广播/初始化。
  */
 
-import { TileType } from "@roguelike/shared";
-import type { GameState } from "@roguelike/shared";
+import { TerrainType, ActorType } from "@roguelike/shared";
+import type { GameState, Terrain } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
 import { extractLabel } from "./utils.js";
-import { LOG_MESSAGES } from "./game-stage.js";
+import { TERRAIN_LOG_MESSAGES, ACTOR_LOG_MESSAGES } from "./game-stage.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "GameActions" });
@@ -20,8 +20,10 @@ const log = logger.child({ module: "GameActions" });
 export interface ApplyRevealResult {
   ok: boolean;
   error?: string;
-  /** 本次揭开的格子类型（`ok` 为 `true` 时有值）。 */
-  tileType?: TileType;
+  /** 本次揭开的格子地形（`ok` 为 `true` 时有值）。 */
+  terrain?: Terrain;
+  /** 本次揭开的 Actor 类型（有 Actor 时有值）。 */
+  actorType?: ActorType;
   /** 本回合追加的日志消息（`ok` 为 `true` 且格子首次揭开时有值）。 */
   message?: string;
   /** Monster 格子专用：关联的 `GameAgent` 名称，供调用方激活对应 agent。 */
@@ -44,19 +46,27 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
     return { ok: false, error: `坐标 (${x}, ${y}) 超出地图范围` };
   }
   if (tile.revealed) {
-    return { ok: true, tileType: tile.type };
+    return { ok: true, terrain: tile.terrain, actorType: tile.actor?.type };
   }
 
   tile.revealed = true;
   state.turn += 1;
-  let message = LOG_MESSAGES[tile.type];
-  if (tile.type === TileType.Monster && tile.actor) {
+  let message = tile.actor
+    ? ACTOR_LOG_MESSAGES[tile.actor.type]
+    : TERRAIN_LOG_MESSAGES[tile.terrain.type];
+  if (tile.actor?.type === ActorType.Monster) {
     const agent = state.agents[tile.actor.name];
     if (agent) message = `${message}==>【${extractLabel(agent.name)}】`;
   }
   state.log = [...state.log, { turn: state.turn, message }];
 
-  return { ok: true, tileType: tile.type, message, agentName: tile.actor?.name };
+  return {
+    ok: true,
+    terrain: tile.terrain,
+    actorType: tile.actor?.type,
+    message,
+    agentName: tile.actor?.name,
+  };
 }
 
 // ─── Agent activation ─────────────────────────────────────────────────────────

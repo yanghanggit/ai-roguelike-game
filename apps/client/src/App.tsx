@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { GameState, LogEntry, StartGameResponse, ActionResponse } from "@roguelike/shared";
+import { getTileGlyph } from "@roguelike/shared";
 
 // ─── Top bar ─────────────────────────────────────────────────────────────────
 
@@ -75,8 +76,11 @@ function GameStage({
             );
           }
           return (
-            <div key={`${x}-${y}`} className={`tile tile-revealed tile-${tile.type}`}>
-              {tile.glyph}
+            <div
+              key={`${x}-${y}`}
+              className={`tile tile-revealed tile-${tile.actor?.type ?? tile.terrain.type}`}
+            >
+              {getTileGlyph(tile)}
             </div>
           );
         }),

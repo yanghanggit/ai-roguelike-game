@@ -3,8 +3,9 @@ import request from "supertest";
 import { app, sessions } from "./app.js";
 import { createRandomStage } from "./game-stage.js";
 import { Actor } from "./actor.js";
+import { Terrain } from "./terrain.js";
 import type { GameState } from "@roguelike/shared";
-import { TileType } from "@roguelike/shared";
+import { TerrainType, ActorType } from "@roguelike/shared";
 import { GameAgent as GameAgentClass } from "./ai/index.js";
 
 // ─── DeepSeek fetch mock helper ───────────────────────────────────────────────
@@ -76,7 +77,9 @@ describe("POST /game/start", () => {
   it("map has at least 1 entrance tile", async () => {
     const res = await request(app).post("/game/start");
     const state: GameState = res.body.state;
-    const entranceCount = state.stage.tiles.flat().filter((t) => t.type === "entrance").length;
+    const entranceCount = state.stage.tiles
+      .flat()
+      .filter((t) => t.terrain.type === "entrance").length;
     expect(entranceCount).toBeGreaterThanOrEqual(1);
   });
 
@@ -105,7 +108,7 @@ describe("POST /game/player-action — reveal", () => {
   it("reveals a hidden tile and increments turn", async () => {
     // 确保 (0,0) 是非怪物格
     const state0 = sessions.get(sessionId)!;
-    state0.stage.tiles[0]![0]!.type = TileType.Floor;
+    state0.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
     delete state0.stage.tiles[0]![0]!.actor;
 
     const res = await request(app)
@@ -119,7 +122,7 @@ describe("POST /game/player-action — reveal", () => {
 
   it("非怪物格 reveal 后，HTTP 响应 phase 为 dungeon", async () => {
     const state0 = sessions.get(sessionId)!;
-    state0.stage.tiles[0]![0]!.type = TileType.Floor;
+    state0.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
     delete state0.stage.tiles[0]![0]!.actor;
 
     const res = await request(app)
@@ -151,7 +154,7 @@ describe("POST /game/player-action — reveal", () => {
     // 通过预先将 (0,0) 设置为 revealed = true，可以在不改变的情况下重新测试该阶段。
     const state0 = sessions.get(sessionId)!;
     state0.stage.tiles[0]![0]!.revealed = true;
-    state0.stage.tiles[0]![0]!.type = TileType.Floor;
+    state0.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
 
     const res = await request(app)
       .post("/game/player-action")
@@ -173,7 +176,7 @@ describe("createRandomStage", () => {
     const stage = createRandomStage(3);
     expect(stage.tiles).toHaveLength(3);
     expect(stage.tiles[0]).toHaveLength(3);
-    const entrances = stage.tiles.flat().filter((t) => t.type === "entrance").length;
+    const entrances = stage.tiles.flat().filter((t) => t.terrain.type === "entrance").length;
     expect(entrances).toBeGreaterThanOrEqual(1);
   });
 
@@ -181,7 +184,7 @@ describe("createRandomStage", () => {
     const stage = createRandomStage(4);
     expect(stage.tiles).toHaveLength(4);
     expect(stage.tiles[0]).toHaveLength(4);
-    const entrances = stage.tiles.flat().filter((t) => t.type === "entrance").length;
+    const entrances = stage.tiles.flat().filter((t) => t.terrain.type === "entrance").length;
     expect(entrances).toBeGreaterThanOrEqual(2);
   });
 
@@ -212,8 +215,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
   it("reveal Monster 格子后，agent 已激活，phase 变为 dungeon", async () => {
     // 强制 (0,0) 为 Monster，并在 agents 中预建立对应的 agent
     const state = sessions.get(sessionId)!;
-    state.stage.tiles[0]![0]!.type = TileType.Monster;
-    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
+    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0", ActorType.Monster);
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -232,8 +235,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     mockFetch("我决定攻击玩家！");
 
     const state = sessions.get(sessionId)!;
-    state.stage.tiles[0]![0]!.type = TileType.Monster;
-    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
+    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0", ActorType.Monster);
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -267,7 +270,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
 
   it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {
     const state = sessions.get(sessionId)!;
-    state.stage.tiles[0]![0]!.type = TileType.Floor;
+    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
+    delete state.stage.tiles[0]![0]!.actor;
     delete (state.stage.tiles[0]![0]! as { agentName?: string }).agentName;
 
     const res = await request(app)
