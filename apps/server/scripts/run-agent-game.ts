@@ -35,7 +35,7 @@ import { queryStatusTool, strikeTool } from "../src/agent-tools.js";
 import { GameAgent } from "../src/game-agent.js";
 import { saveGameState, loadGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
-import { getTileGlyph } from "@roguelike/shared";
+import { getTileChar } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
@@ -65,7 +65,7 @@ function printMap(state: GameState): void {
 
   for (let y = 0; y < size; y++) {
     const row = state.stage.tiles[y]!;
-    const cells = row.map((tile) => (tile.revealed ? ` ${getTileGlyph(tile)}` : " ?")).join("");
+    const cells = row.map((tile) => (tile.revealed ? ` ${getTileChar(tile)}` : " ?")).join("");
     logger.info(` ${y} │${cells} │`);
   }
   logger.info("   +" + "──".repeat(size) + "+");
@@ -261,11 +261,11 @@ program
 
     //  保存当前状态为新存档，形成时间线快照
     const savedPath = saveGameState(state, SAVES_DIR);
-    logger.info({ x, y, tileType: result.tileType, phase: state.phase, savedPath }, "格子已揭开");
+    logger.info({ x, y, terrain: result.terrain?.type, actorType: result.actorType, phase: state.phase, savedPath }, "格子已揭开");
     logger.info(`\n下次操作请传入：--save ${savedPath}`);
 
     if (result.message) {
-      logger.info(`✓ (${x},${y})：${result.tileType}  →  ${result.message}`);
+      logger.info(`✓ (${x},${y})：${result.actorType ?? result.terrain?.type}  →  ${result.message}`);
     } else {
       logger.info(`  (${x},${y}) 已揭开，无变化`);
     }

@@ -64,9 +64,21 @@ export interface Tile {
 
 // ─── Glyph ───────────────────────────────────────────────────────────────────
 
-/** 返回格子的显示字符：有 Actor 时取 Actor 字符，否则取地形字符。 */
-export function getTileGlyph(tile: Tile): string {
+/** 返回格子的单个显示字符（ASCII 地图等紧凑场景用）。 */
+export function getTileChar(tile: Tile): string {
   return tile.actor ? ACTOR_GLYPHS[tile.actor.type] : TERRAIN_GLYPHS[tile.terrain.type];
+}
+
+/** 返回格子的完整信息字符串（多行）：actor 类型+名称 / terrain 类型+名称。 */
+export function getTileGlyph(tile: Tile): string {
+  const lines: string[] = [];
+  if (tile.actor) {
+    lines.push(`${ACTOR_GLYPHS[tile.actor.type]} ${tile.actor.name}`);
+    //lines.push(tile.actor.name);
+  }
+  lines.push(`${TERRAIN_GLYPHS[tile.terrain.type]} ${tile.terrain.name}`);
+  //lines.push(tile.terrain.name);
+  return lines.join("\n");
 }
 
 // ─── Stage ──────────────────────────────────────────────────────────────────

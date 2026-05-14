@@ -6,6 +6,7 @@ import {
   TerrainType,
   ActorType,
   getTileGlyph,
+  getTileChar,
   TERRAIN_GLYPHS,
   ACTOR_GLYPHS,
 } from "@roguelike/shared";
@@ -92,7 +93,7 @@ describe("createRandomStage", () => {
       const expected = tile.actor
         ? ACTOR_GLYPHS[tile.actor.type]
         : TERRAIN_GLYPHS[tile.terrain.type];
-      expect(getTileGlyph(tile)).toBe(expected);
+      expect(getTileChar(tile)).toBe(expected);
     });
   });
 
