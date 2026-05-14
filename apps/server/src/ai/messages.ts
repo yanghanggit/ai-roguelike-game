@@ -2,7 +2,7 @@
  * 自定义消息类型（仿 langchain 风格，无 langchain 依赖）
  *
  * 提供与 Python messages.py 接口对等的消息类型：
- *   BaseMessage, SystemMessage, HumanMessage, AIMessage
+ *   BaseMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
  */
 
 // ─── Base ─────────────────────────────────────────────────────────────────────
@@ -27,8 +27,15 @@ export interface AIMessage extends BaseMessage {
   readonly type: "ai";
 }
 
+/** tool 调用结果消息，对应 DeepSeek/OpenAI API 的 `role: "tool"` 消息。 */
+export interface ToolMessage extends BaseMessage {
+  readonly type: "tool";
+  /** 对应的 tool_call id，与 AIMessage 中 tool_calls[n].id 一一对应 */
+  readonly toolCallId: string;
+}
+
 /** 判别联合类型 — 通过 `type` 字段唯一区分各消息类型。 */
-export type ContextMessage = SystemMessage | HumanMessage | AIMessage;
+export type ContextMessage = SystemMessage | HumanMessage | AIMessage | ToolMessage;
 
 // ─── Factories ────────────────────────────────────────────────────────────────
 
@@ -61,7 +68,7 @@ export function humanMessage(
 /**
  * 创建 AI 消息。
  * @param content - 消息正文。
- * @param additionalKwargs - 附加元数据（如 `reasoning_content`），默认为空对象。
+ * @param additionalKwargs - 附加元数据（如 `reasoning_content`、`tool_calls`），默认为空对象。
  * @returns 类型为 `"ai"` 的消息对象。
  */
 export function aiMessage(
@@ -69,6 +76,16 @@ export function aiMessage(
   additionalKwargs: Record<string, unknown> = {},
 ): AIMessage {
   return { type: "ai", content, additionalKwargs };
+}
+
+/**
+ * 创建 tool 调用结果消息。
+ * @param toolCallId - 对应 LLM 发出的 tool_calls[n].id。
+ * @param content - 工具执行结果（字符串）。
+ * @returns 类型为 `"tool"` 的消息对象。
+ */
+export function toolMessage(toolCallId: string, content: string): ToolMessage {
+  return { type: "tool", content, additionalKwargs: { toolCallId }, toolCallId };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -98,8 +115,12 @@ export function getBufferString(
           return `${humanPrefix}: ${msg.content}`;
         case "ai":
           return `${aiPrefix}: ${msg.content}`;
+        case "tool": {
+          const id = (msg as ToolMessage).toolCallId;
+          return `Tool(${id}): ${msg.content}`;
+        }
         default:
-          throw new Error(`不支持的消息类型: ${msg.type}`);
+          return `Unknown: ${msg.content}`;
       }
     })
     .join("\n");

@@ -43,9 +43,10 @@ export interface Player {
 
 /** 单条对话消息，镜像服务端 ContextMessage（纯数据，可 JSON 序列化） */
 export interface AgentMessage {
-  readonly type: "system" | "human" | "ai";
+  readonly type: "system" | "human" | "ai" | "tool";
   readonly content: string;
   readonly additionalKwargs: Record<string, unknown>;
+  readonly toolCallId?: string;
 }
 
 /** 怪物 Agent 快照：名称 + 完整对话上下文 */

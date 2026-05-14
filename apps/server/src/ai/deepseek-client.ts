@@ -12,16 +12,16 @@
  *   创意写作/诗歌    → 1.5
  */
 
-import {
-  DEEPSEEK_API_URL,
-  DEEPSEEK_BALANCE_URL,
-  DEEPSEEK_MODELS_URL,
-  MODEL_FLASH,
-} from "./config.js";
-import { type AIMessage, type BaseMessage, aiMessage } from "./messages.js";
+import { MODEL_FLASH } from "./config.js";
+import { type AIMessage, type BaseMessage, type ToolMessage, aiMessage } from "./messages.js";
 import { logger } from "../logger.js";
 
 const log = logger.child({ module: "DeepSeekClient" });
+
+// ─── API Endpoints ───────────────────────────────────────────────────────────
+export const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions" as const;
+export const DEEPSEEK_MODELS_URL = "https://api.deepseek.com/models" as const;
+export const DEEPSEEK_BALANCE_URL = "https://api.deepseek.com/user/balance" as const;
 
 // ─── Role mapping ─────────────────────────────────────────────────────────────
 
@@ -29,7 +29,43 @@ const ROLE_MAP: Record<string, string> = {
   system: "system",
   human: "user",
   ai: "assistant",
+  tool: "tool",
 };
+
+// ─── Tool calling types ───────────────────────────────────────────────────────
+
+/** 工具函数参数的 JSON Schema 描述。 */
+export interface ToolFunction {
+  /** 工具名称，应与业务逻辑函数名一致 */
+  name: string;
+  /** 面向 LLM 的工具功能说明 */
+  description: string;
+  /** 参数的 JSON Schema（object 类型） */
+  parameters: Record<string, unknown>;
+}
+
+/** 单个工具定义，对应 DeepSeek/OpenAI `tools` 数组的一个元素。 */
+export interface ToolDefinition {
+  /** 固定为 "function" */
+  type: "function";
+  /** 函数描述内容 */
+  function: ToolFunction;
+}
+
+/** LLM 返回的单次工具调用指令。 */
+export interface ToolCall {
+  /** 本次调用的唯一 ID，需在 ToolMessage 中回传 */
+  id: string;
+  /** 固定为 "function" */
+  type: "function";
+  /** 函数调用信息 */
+  function: {
+    /** 被调用的工具名称 */
+    name: string;
+    /** JSON 序列化的参数字符串 */
+    arguments: string;
+  };
+}
 
 // ─── Payload & response shapes ────────────────────────────────────────────────
 
@@ -67,10 +103,10 @@ interface DeepSeekPayload {
   temperature: number;
   /** nucleus sampling 参数 */
   top_p: number;
-  /** 工具列表，暂不使用 */
-  tools: null;
-  /** 工具选择策略，固定为 none */
-  tool_choice: "none";
+  /** 工具列表；null 表示不使用 tool calling */
+  tools: ToolDefinition[] | null;
+  /** 工具选择策略 */
+  tool_choice: "auto" | "none";
   /** 是否返回 log 概率，固定为 false */
   logprobs: false;
   /** top logprobs 数量，固定为 null */
@@ -81,16 +117,20 @@ interface DeepSeekPayload {
 interface DeepSeekResponseMessage {
   /** 消息角色 */
   role: string;
-  /** 回复正文；推理模式下可能为 null */
+  /** 回复正文；推理模式下可能为 null；tool_calls 响应时也可能为 null */
   content: string | null;
   /** 推理过程文本（仅 deepseek-reasoner 返回） */
   reasoning_content?: string | null;
+  /** LLM 本轮发起的工具调用列表（finish_reason === "tool_calls" 时存在） */
+  tool_calls?: ToolCall[];
 }
 
 /** API 返回的单个候选回答。 */
 interface DeepSeekResponseChoice {
   /** 候选消息内容 */
   message: DeepSeekResponseMessage;
+  /** 本轮结束原因："stop" | "tool_calls" | "length" | "content_filter" */
+  finish_reason: string;
 }
 
 /** API 返回的 prompt 缓存 token 统计信息。 */
@@ -120,7 +160,7 @@ interface DeepSeekModelsResponse {
 export interface DeepSeekClientOptions {
   /** 客户端标识名称 */
   name: string;
-  /** 发送给 AI 的完整提示词 */
+  /** 发送给 AI 的完整提示词；传空字符串表示 continuation 模式（不追加 user 消息） */
   prompt: string;
   /** 历史对话上下文 */
   context: readonly BaseMessage[];
@@ -134,6 +174,10 @@ export interface DeepSeekClientOptions {
   compressedPrompt?: string;
   /** 温度参数，默认 1.0 */
   temperature?: number;
+  /** 工具列表；传入后自动启用 tool calling */
+  tools?: ToolDefinition[];
+  /** 工具选择策略，默认：有 tools 时为 "auto"，否则为 "none" */
+  toolChoice?: "auto" | "none";
 }
 
 // ─── DeepSeekClient ───────────────────────────────────────────────────────────
@@ -147,6 +191,8 @@ export class DeepSeekClient {
   private readonly _thinking: boolean;
   private readonly _timeout: number;
   private readonly _temperature: number;
+  private readonly _tools: ToolDefinition[];
+  private readonly _toolChoice: "auto" | "none";
 
   /** 最近一次 `chat()` 调用后的 AI 响应消息；调用前为 null */
   private _responseAiMessage: AIMessage | null = null;
@@ -154,6 +200,10 @@ export class DeepSeekClient {
   private _promptCacheHitTokens = 0;
   /** 最近一次请求未命中 KV 缓存的 token 数 */
   private _promptCacheMissTokens = 0;
+  /** 最近一次响应的 finish_reason；调用前为空字符串 */
+  private _finishReason = "";
+  /** 最近一次响应中 LLM 发起的 tool 调用列表；无 tool call 时为空数组 */
+  private _toolCalls: ToolCall[] = [];
 
   constructor(options: DeepSeekClientOptions) {
     const {
@@ -165,10 +215,12 @@ export class DeepSeekClient {
       timeout = 30_000,
       compressedPrompt,
       temperature = 1.0,
+      tools = [],
+      toolChoice,
     } = options;
 
     if (!name) throw new Error("name should not be empty");
-    if (!prompt) throw new Error("prompt should not be empty");
+    if (!prompt && tools.length === 0) throw new Error("prompt should not be empty");
     if (timeout <= 0) throw new Error("timeout should be positive");
 
     this._name = name;
@@ -179,6 +231,8 @@ export class DeepSeekClient {
     this._thinking = thinking;
     this._timeout = timeout;
     this._temperature = temperature;
+    this._tools = tools;
+    this._toolChoice = toolChoice ?? (tools.length > 0 ? "auto" : "none");
 
     if (context.length === 0) {
       log.warn({ name }, "context is empty");
@@ -220,6 +274,14 @@ export class DeepSeekClient {
   get promptCacheMissTokens(): number {
     return this._promptCacheMissTokens;
   }
+  /** 最近一次响应的 finish_reason；调用 `chat()` 前为空字符串 */
+  get finishReason(): string {
+    return this._finishReason;
+  }
+  /** 最近一次响应中 LLM 发起的 tool 调用列表；无 tool call 时为空数组 */
+  get toolCalls(): ToolCall[] {
+    return this._toolCalls;
+  }
 
   // ─── Static helpers ──────────────────────────────────────────────────────────
 
@@ -245,16 +307,21 @@ export class DeepSeekClient {
    */
   static async listModels(): Promise<string[]> {
     try {
+      // 请求模型列表接口，10 秒超时
       const res = await fetch(DEEPSEEK_MODELS_URL, {
         headers: DeepSeekClient.buildStaticHeaders(),
         signal: AbortSignal.timeout(10_000),
       });
+
+      // 成功响应时解析模型 ID 列表并返回；失败时记录错误日志并返回空数组
       if (res.ok) {
         const data = (await res.json()) as DeepSeekModelsResponse;
         const ids = data.data.map((m) => m.id);
         log.info({ models: ids }, "listModels");
         return ids;
       }
+
+      // 响应非 2xx 时记录错误日志（含状态码和响应体）并返回空数组
       log.error({ status: res.status, body: await res.text() }, "listModels failed");
       return [];
     } catch (e) {
@@ -269,18 +336,24 @@ export class DeepSeekClient {
    */
   static async getBalance(): Promise<Record<string, unknown>> {
     try {
+      // 请求余额接口，10 秒超时
       const res = await fetch(DEEPSEEK_BALANCE_URL, {
         headers: DeepSeekClient.buildStaticHeaders(),
         signal: AbortSignal.timeout(10_000),
       });
+
+      // 成功响应时解析余额信息并返回；失败时记录错误日志并返回空对象
       if (res.ok) {
         const data = (await res.json()) as Record<string, unknown>;
         log.info({ balance: data }, "getBalance");
         return data;
       }
+
+      // 响应非 2xx 时记录错误日志（含状态码和响应体）并返回空对象
       log.error({ status: res.status, body: await res.text() }, "getBalance failed");
       return {};
     } catch (e) {
+      // 捕获网络错误、超时等异常，记录错误日志并返回空对象
       log.error({ err: e }, "getBalance error");
       return {};
     }
@@ -291,19 +364,25 @@ export class DeepSeekClient {
    * @param clients - 待并发执行的客户端实例列表；为空时立即返回。
    */
   static async batchChat(clients: DeepSeekClient[]): Promise<void> {
-    if (clients.length === 0) return;
+    if (clients.length === 0) {
+      log.warn("batchChat called with empty clients array");
+      return;
+    }
 
+    // 记录批量请求开始，包含客户端数量
     const start = Date.now();
     const results = await Promise.allSettled(clients.map((c) => c.chat()));
     const elapsed = ((Date.now() - start) / 1000).toFixed(2);
 
     const failed = results.filter((r) => r.status === "rejected");
     failed.forEach((r, i) => {
+      // 记录每个失败请求的客户端名称和错误原因
       const name = clients[i]?.name ?? "unknown";
       const reason = r.status === "rejected" ? String(r.reason) : "";
       log.error({ name, reason }, "batchChat: individual request failed");
     });
 
+    // 记录批量请求结果，包含成功/失败数量和总耗时
     if (failed.length > 0) {
       log.warn(
         { failed: failed.length, total: clients.length, elapsed },
@@ -325,6 +404,7 @@ export class DeepSeekClient {
     const start = Date.now();
 
     try {
+      // 构建请求体并发送 POST 请求，使用实例配置的超时设置
       const res = await fetch(DEEPSEEK_API_URL, {
         method: "POST",
         headers: this.buildHeaders(),
@@ -336,6 +416,7 @@ export class DeepSeekClient {
       log.debug({ name: this._name, elapsed }, "request time");
 
       if (res.ok) {
+        // 成功响应时解析结果，更新实例字段，并记录响应内容和缓存统计信息
         const data = (await res.json()) as DeepSeekResponse;
         log.debug({ name: this._name, rawResponse: data }, "raw response");
         this.parseResponse(data);
@@ -348,10 +429,13 @@ export class DeepSeekClient {
           },
           "cache stats",
         );
+
+        // 若响应包含推理过程文本，则记录一条 info 级别日志输出该内容
         if (this.responseReasoningContent) {
           log.info({ name: this._name, reasoning: this.responseReasoningContent }, "reasoning");
         }
       } else {
+        // 响应非 2xx 时记录错误日志（含状态码和响应体）
         const text = await res.text();
         this.handleErrorResponse(res.status, text);
       }
@@ -373,11 +457,34 @@ export class DeepSeekClient {
    * 将历史上下文消息与当前提示词合并为 `messages` 数组。
    */
   private buildPayload(): DeepSeekPayload {
-    const messages: DeepSeekMessage[] = this._context.map((msg) => ({
-      role: ROLE_MAP[msg.type] ?? "user",
-      content: msg.content,
-    }));
-    messages.push({ role: "user", content: this._prompt });
+    const messages: DeepSeekMessage[] = this._context.map((msg) => {
+      // ToolMessage 需要额外带 tool_call_id 字段
+      if (msg.type === "tool") {
+        const tm = msg as ToolMessage;
+        return {
+          role: "tool",
+          tool_call_id: tm.toolCallId,
+          content: tm.content,
+        } as unknown as DeepSeekMessage;
+      }
+      // AIMessage 含 tool_calls 时需带上 tool_calls 字段
+      if (msg.type === "ai") {
+        const toolCalls = (msg as AIMessage).additionalKwargs["tool_calls"];
+        if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+          return {
+            role: "assistant",
+            content: msg.content || null,
+            tool_calls: toolCalls,
+          } as unknown as DeepSeekMessage;
+        }
+      }
+      return { role: ROLE_MAP[msg.type] ?? "user", content: msg.content };
+    });
+
+    // prompt 为空字符串时表示 continuation 模式，不追加 user 消息
+    if (this._prompt !== "") {
+      messages.push({ role: "user", content: this._prompt });
+    }
 
     return {
       messages,
@@ -392,8 +499,8 @@ export class DeepSeekClient {
       stream_options: null,
       temperature: this._temperature,
       top_p: 1,
-      tools: null,
-      tool_choice: "none",
+      tools: this._tools.length > 0 ? this._tools : null,
+      tool_choice: this._toolChoice,
       logprobs: false,
       top_logprobs: null,
     };
@@ -410,16 +517,30 @@ export class DeepSeekClient {
       return;
     }
 
-    const message = choices[0]!.message;
+    const choice = choices[0]!;
+    this._finishReason = choice.finish_reason ?? "";
+
+    const message = choice.message;
     const content = message.content ?? "";
     const additionalKwargs: Record<string, unknown> = {};
 
+    // 若响应包含推理过程文本，则将其加入 additionalKwargs 以便后续访问
     if (message.reasoning_content) {
       additionalKwargs["reasoning_content"] = message.reasoning_content;
     }
 
+    // 若响应包含工具调用指令，则将其加入 additionalKwargs 以便后续处理，并更新实例字段
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      additionalKwargs["tool_calls"] = message.tool_calls;
+      this._toolCalls = message.tool_calls;
+    } else {
+      this._toolCalls = [];
+    }
+
+    // 更新 responseAiMessage 字段，供外部访问完整响应内容和附加信息
     this._responseAiMessage = aiMessage(content, additionalKwargs);
 
+    // 记录响应内容和缓存统计信息
     const usage = data.usage ?? {};
     this._promptCacheHitTokens = usage.prompt_cache_hit_tokens ?? 0;
     this._promptCacheMissTokens = usage.prompt_cache_miss_tokens ?? 0;

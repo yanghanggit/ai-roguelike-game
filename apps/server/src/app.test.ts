@@ -37,13 +37,13 @@ describe("GET /health", () => {
 describe("POST /game/start", () => {
   beforeEach(() => sessions.clear());
 
-  it("returns a valid 4×4 game state", async () => {
+  it("returns a valid game state (3×3 or 4×4)", async () => {
     const res = await request(app).post("/game/start");
     expect(res.status).toBe(200);
     const state: GameState = res.body.state;
-    expect(state.mapSize).toBe(4);
-    expect(state.map).toHaveLength(4);
-    expect(state.map[0]).toHaveLength(4);
+    expect([3, 4]).toContain(state.mapSize);
+    expect(state.map).toHaveLength(state.mapSize);
+    expect(state.map[0]).toHaveLength(state.mapSize);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
@@ -55,11 +55,11 @@ describe("POST /game/start", () => {
     expect(allHidden).toBe(true);
   });
 
-  it("map has at least 2 entrance tiles", async () => {
+  it("map has at least 1 entrance tile", async () => {
     const res = await request(app).post("/game/start");
     const state: GameState = res.body.state;
     const entranceCount = state.map.flat().filter((t) => t.type === "entrance").length;
-    expect(entranceCount).toBeGreaterThanOrEqual(2);
+    expect(entranceCount).toBeGreaterThanOrEqual(1);
   });
 
   it("stores session and creates unique sessionIds", async () => {

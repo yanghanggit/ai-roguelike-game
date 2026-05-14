@@ -4,11 +4,19 @@ export {
   type SystemMessage,
   type HumanMessage,
   type AIMessage,
+  type ToolMessage,
   type ContextMessage,
   systemMessage,
   humanMessage,
   aiMessage,
+  toolMessage,
   getBufferString,
 } from "./messages.js";
-export { DeepSeekClient, type DeepSeekClientOptions } from "./deepseek-client.js";
+export {
+  DeepSeekClient,
+  type DeepSeekClientOptions,
+  type ToolFunction,
+  type ToolDefinition,
+  type ToolCall,
+} from "./deepseek-client.js";
 export { GameAgent } from "./game-agent.js";
