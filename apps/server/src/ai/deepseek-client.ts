@@ -33,51 +33,85 @@ const ROLE_MAP: Record<string, string> = {
 
 // ─── Payload & response shapes ────────────────────────────────────────────────
 
+/** 发送给 DeepSeek API 的单条消息。 */
 interface DeepSeekMessage {
+  /** 消息角色："system" | "user" | "assistant" */
   role: string;
+  /** 消息文本内容 */
   content: string;
 }
 
+/** 调用 DeepSeek Chat Completions API 的完整请求体结构。 */
 interface DeepSeekPayload {
+  /** 对话消息列表（含历史上下文与当前提示词） */
   messages: DeepSeekMessage[];
+  /** 使用的模型 ID */
   model: string;
+  /** 思考模式开关；仅 deepseek-reasoner 支持 enabled */
   thinking: { type: "enabled" | "disabled" };
+  /** 频率惩罚系数，降低重复 token 的出现概率 */
   frequency_penalty: number;
+  /** 响应最大 token 数 */
   max_tokens: number;
+  /** 存在惩罚系数，鼓励模型引入新话题 */
   presence_penalty: number;
+  /** 响应格式，固定为纯文本 */
   response_format: { type: "text" };
+  /** 停止词，null 表示不使用 */
   stop: null;
+  /** 是否启用流式响应，固定为 false */
   stream: false;
+  /** 流式选项，非流式时固定为 null */
   stream_options: null;
+  /** 采样温度 */
   temperature: number;
+  /** nucleus sampling 参数 */
   top_p: number;
+  /** 工具列表，暂不使用 */
   tools: null;
+  /** 工具选择策略，固定为 none */
   tool_choice: "none";
+  /** 是否返回 log 概率，固定为 false */
   logprobs: false;
+  /** top logprobs 数量，固定为 null */
   top_logprobs: null;
 }
 
+/** API 返回的单条消息内容。 */
 interface DeepSeekResponseMessage {
+  /** 消息角色 */
   role: string;
+  /** 回复正文；推理模式下可能为 null */
   content: string | null;
+  /** 推理过程文本（仅 deepseek-reasoner 返回） */
   reasoning_content?: string | null;
 }
 
+/** API 返回的单个候选回答。 */
 interface DeepSeekResponseChoice {
+  /** 候选消息内容 */
   message: DeepSeekResponseMessage;
 }
 
+/** API 返回的 prompt 缓存 token 统计信息。 */
 interface DeepSeekResponseUsage {
+  /** 命中 KV 缓存的 prompt token 数 */
   prompt_cache_hit_tokens?: number;
+  /** 未命中 KV 缓存的 prompt token 数 */
   prompt_cache_miss_tokens?: number;
 }
 
+/** DeepSeek Chat Completions API 的完整响应体。 */
 interface DeepSeekResponse {
+  /** 候选回答列表（非流式时通常只有一条） */
   choices: DeepSeekResponseChoice[];
+  /** token 使用统计（含缓存信息） */
   usage?: DeepSeekResponseUsage;
 }
 
+/** DeepSeek 模型列表 API 的响应体。 */
 interface DeepSeekModelsResponse {
+  /** 可用模型描述对象数组 */
   data: Array<{ id: string }>;
 }
 
@@ -114,8 +148,11 @@ export class DeepSeekClient {
   private readonly _timeout: number;
   private readonly _temperature: number;
 
+  /** 最近一次 `chat()` 调用后的 AI 响应消息；调用前为 null */
   private _responseAiMessage: AIMessage | null = null;
+  /** 最近一次请求命中 KV 缓存的 token 数 */
   private _promptCacheHitTokens = 0;
+  /** 最近一次请求未命中 KV 缓存的 token 数 */
   private _promptCacheMissTokens = 0;
 
   constructor(options: DeepSeekClientOptions) {
@@ -150,28 +187,36 @@ export class DeepSeekClient {
 
   // ─── Properties ─────────────────────────────────────────────────────────────
 
+  /** 客户端标识名称 */
   get name(): string {
     return this._name;
   }
+  /** 发送给 AI 的完整提示词 */
   get prompt(): string {
     return this._prompt;
   }
+  /** 写入对话历史的压缩版提示词 */
   get compressedPrompt(): string {
     return this._compressedPrompt;
   }
+  /** 最近一次请求的 AI 响应消息对象；`chat()` 调用前为 null */
   get responseAiMessage(): AIMessage | null {
     return this._responseAiMessage;
   }
+  /** 最近一次请求的 AI 响应正文；未调用或请求失败时为空字符串 */
   get responseContent(): string {
     return this._responseAiMessage?.content ?? "";
   }
+  /** 最近一次请求的推理过程文本（仅 deepseek-reasoner 返回）；否则为空字符串 */
   get responseReasoningContent(): string {
     const val = this._responseAiMessage?.additionalKwargs["reasoning_content"];
     return typeof val === "string" ? val : "";
   }
+  /** 最近一次请求命中 KV 缓存的 token 数 */
   get promptCacheHitTokens(): number {
     return this._promptCacheHitTokens;
   }
+  /** 最近一次请求未命中 KV 缓存的 token 数 */
   get promptCacheMissTokens(): number {
     return this._promptCacheMissTokens;
   }
@@ -292,6 +337,7 @@ export class DeepSeekClient {
 
       if (res.ok) {
         const data = (await res.json()) as DeepSeekResponse;
+        log.debug({ name: this._name, rawResponse: data }, "raw response");
         this.parseResponse(data);
         log.info({ name: this._name, response: this.responseContent }, "responseContent");
         log.debug(
@@ -322,6 +368,10 @@ export class DeepSeekClient {
 
   // ─── Private ─────────────────────────────────────────────────────────────────
 
+  /**
+   * 根据当前实例配置构造 DeepSeek API 请求体。
+   * 将历史上下文消息与当前提示词合并为 `messages` 数组。
+   */
   private buildPayload(): DeepSeekPayload {
     const messages: DeepSeekMessage[] = this._context.map((msg) => ({
       role: ROLE_MAP[msg.type] ?? "user",
@@ -349,6 +399,10 @@ export class DeepSeekClient {
     };
   }
 
+  /**
+   * 解析 API 响应并将结果写入实例字段。
+   * @param data - API 返回的原始响应对象
+   */
   private parseResponse(data: DeepSeekResponse): void {
     const choices = data.choices;
     if (!choices || choices.length === 0) {
@@ -371,6 +425,11 @@ export class DeepSeekClient {
     this._promptCacheMissTokens = usage.prompt_cache_miss_tokens ?? 0;
   }
 
+  /**
+   * 按 HTTP 状态码记录对应的错误日志。
+   * @param status - HTTP 响应状态码
+   * @param text   - 响应体原始文本（用于调试）
+   */
   private handleErrorResponse(status: number, text: string): void {
     switch (status) {
       case 400:
@@ -399,10 +458,17 @@ export class DeepSeekClient {
     }
   }
 
+  /**
+   * 构建实例请求头（代理 {@link DeepSeekClient.buildStaticHeaders}）。
+   */
   private buildHeaders(): Record<string, string> {
     return DeepSeekClient.buildStaticHeaders();
   }
 
+  /**
+   * 构建包含 `Authorization` Bearer Token 的 HTTP 请求头。
+   * 每次调用都从环境变量实时读取 API Key。
+   */
   private static buildStaticHeaders(): Record<string, string> {
     return {
       "Content-Type": "application/json",
