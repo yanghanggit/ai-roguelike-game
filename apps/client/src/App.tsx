@@ -78,7 +78,7 @@ function GameStage({
           return (
             <div
               key={`${x}-${y}`}
-              className={`tile tile-revealed tile-${tile.actor?.type ?? tile.terrain.type}`}
+              className={`tile tile-revealed tile-${tile.occupant?.type ?? tile.terrain.type}`}
             >
               {getTileGlyph(tile)}
             </div>

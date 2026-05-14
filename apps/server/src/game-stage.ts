@@ -6,7 +6,7 @@
  */
 
 import { TerrainType, ActorType } from "@roguelike/shared";
-import type { Actor, Stage, Tile } from "@roguelike/shared";
+import type { Actor, Item, Special, Stage, Tile } from "@roguelike/shared";
 import { GAME_SETTING, GLOBAL_RULES } from "./game-constants.js";
 import { buildSystemPrompt } from "./prompts.js";
 
@@ -24,19 +24,17 @@ export const TERRAIN_LOG_MESSAGES: Record<TerrainType, string> = {
   [TerrainType.Entrance]: "通往下一层的入口！",
 };
 
-export const ACTOR_LOG_MESSAGES: Record<ActorType, string> = {
-  [ActorType.Monster]: "一只怪物潜伏于此！",
-  [ActorType.Treasure]: "一个宝箱在闪闪发光！",
-  [ActorType.Item]: "你发现了一件物品！",
-  [ActorType.Special]: "有些不寻常的东西在涌动……",
-};
+export const ACTOR_LOG_MESSAGE = "一只怪物潜伏于此！";
+export const SPECIAL_LOG_MESSAGE = "有些不寻常的东西在涌动……";
+
+export const ITEM_LOG_MESSAGE = "你发现了一件物品！";
 
 // ─── CellSpec & layout ────────────────────────────────────────────────────────
 
-/** 布局中单个格子的构建数据：terrain 必填，actor 可选。 */
+/** 布局中单个格子的构建数据：terrain 必填，occupant 可选。 */
 export interface CellSpec {
   terrain: TerrainType;
-  actor?: ActorType;
+  occupant?: ActorType | "item" | "special";
 }
 
 /**
@@ -46,13 +44,13 @@ export interface CellSpec {
  *
  *      x=0        x=1       x=2
  * y=0  入口 >     地板 ·    墙壁 #
- * y=1  怪物 E     地板 ·    宝箱 $
+ * y=1  怪物 E     地板 ·    物品 !
  * y=2  地板 ·     物品 !    特殊 ?
  *
  * 各元素唯一坐标：
  *   Entrance  (0,0)
  *   Monster   (0,1)  → actor.name = MOCK_MONSTERS[0].name（"怪物.骷髅战士"）
- *   Treasure  (2,1)
+ *   Item      (2,1)
  *   Item      (1,2)
  *   Special   (2,2)
  *   Wall      (2,0)
@@ -65,14 +63,14 @@ export const DEV_STAGE_LAYOUT: CellSpec[][] = [
     { terrain: TerrainType.Wall },
   ],
   [
-    { terrain: TerrainType.Floor, actor: ActorType.Monster },
+    { terrain: TerrainType.Floor, occupant: ActorType.Monster },
     { terrain: TerrainType.Floor },
-    { terrain: TerrainType.Floor, actor: ActorType.Treasure },
+    { terrain: TerrainType.Floor, occupant: "item" },
   ],
   [
     { terrain: TerrainType.Floor },
-    { terrain: TerrainType.Floor, actor: ActorType.Item },
-    { terrain: TerrainType.Floor, actor: ActorType.Special },
+    { terrain: TerrainType.Floor, occupant: "item" },
+    { terrain: TerrainType.Floor, occupant: "special" },
   ],
 ];
 
@@ -84,7 +82,7 @@ export const DEV_STAGE_LAYOUT: CellSpec[][] = [
  *      x=0        x=1        x=2        x=3
  * y=0  入口 >     地板 ·     墙壁 #     地板 ·
  * y=1  怪物 E     地板 ·     地板 ·     墙壁 #
- * y=2  地板 ·     怪物 E     宝箱 $     地板 ·
+ * y=2  地板 ·     怪物 E     物品 !     地板 ·
  * y=3  墙壁 #     地板 ·     怪物 E     物品 !
  *
  * 怪物按 NPCs 顺序分配：骷髅战士(0,1)、史莱姆(1,2)、蝙蝠精(2,3)
@@ -97,22 +95,22 @@ export const STAGE_4X4_LAYOUT: CellSpec[][] = [
     { terrain: TerrainType.Floor },
   ],
   [
-    { terrain: TerrainType.Floor, actor: ActorType.Monster },
+    { terrain: TerrainType.Floor, occupant: ActorType.Monster },
     { terrain: TerrainType.Floor },
     { terrain: TerrainType.Floor },
     { terrain: TerrainType.Wall },
   ],
   [
     { terrain: TerrainType.Floor },
-    { terrain: TerrainType.Floor, actor: ActorType.Monster },
-    { terrain: TerrainType.Floor, actor: ActorType.Treasure },
+    { terrain: TerrainType.Floor, occupant: ActorType.Monster },
+    { terrain: TerrainType.Floor, occupant: "item" },
     { terrain: TerrainType.Floor },
   ],
   [
     { terrain: TerrainType.Wall },
     { terrain: TerrainType.Floor },
-    { terrain: TerrainType.Floor, actor: ActorType.Monster },
-    { terrain: TerrainType.Floor, actor: ActorType.Item },
+    { terrain: TerrainType.Floor, occupant: ActorType.Monster },
+    { terrain: TerrainType.Floor, occupant: "item" },
   ],
 ];
 
@@ -197,15 +195,20 @@ export function createStage(layout: CellSpec[][], name = "dungeon"): Stage {
         terrain: { name: TERRAIN_NAMES[cell.terrain], type: cell.terrain },
         revealed: false,
       };
-      if (cell.actor !== undefined) {
-        const actorType = cell.actor;
+      if (cell.occupant !== undefined) {
+        const occupantType = cell.occupant;
 
-        if (actorType === ActorType.Monster) {
-          // Monster actor 从 NPCs 列表循环分配，确保系统提示词正确
-          tile.actor = { ...NPCs[monsterIndex++ % NPCs.length]! };
+        if (occupantType === ActorType.Monster) {
+          // Monster 从 NPCs 列表循环分配，确保系统提示词正确
+          tile.occupant = { ...NPCs[monsterIndex++ % NPCs.length]! };
+        } else if (occupantType === "item") {
+          // Item 使用坐标命名
+          const itemOccupant: Item = { type: "item", name: `item-${x}-${y}` };
+          tile.occupant = itemOccupant;
         } else {
-          // 其他类型 actor 使用坐标命名，便于调试和日志追踪
-          tile.actor = { name: `${actorType}-${x}-${y}`, type: actorType };
+          // Special 使用坐标命名
+          const specialOccupant: Special = { type: "special", name: `special-${x}-${y}` };
+          tile.occupant = specialOccupant;
         }
       }
       return tile;

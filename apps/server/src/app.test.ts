@@ -107,7 +107,7 @@ describe("POST /game/player-action — reveal", () => {
     // 确保 (0,0) 是非怪物格
     const state0 = sessions.get(sessionId)!;
     state0.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    delete state0.stage.tiles[0]![0]!.actor;
+    delete state0.stage.tiles[0]![0]!.occupant;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -121,7 +121,7 @@ describe("POST /game/player-action — reveal", () => {
   it("非怪物格 reveal 后，HTTP 响应 phase 为 dungeon", async () => {
     const state0 = sessions.get(sessionId)!;
     state0.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    delete state0.stage.tiles[0]![0]!.actor;
+    delete state0.stage.tiles[0]![0]!.occupant;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -206,7 +206,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     // 强制 (0,0) 为 Monster，并在 agents 中预建立对应的 agent
     const state = sessions.get(sessionId)!;
     state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    state.stage.tiles[0]![0]!.actor = { name: "monster-0-0", type: ActorType.Monster };
+    state.stage.tiles[0]![0]!.occupant = { name: "monster-0-0", type: ActorType.Monster };
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -226,7 +226,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
 
     const state = sessions.get(sessionId)!;
     state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    state.stage.tiles[0]![0]!.actor = { name: "monster-0-0", type: ActorType.Monster };
+    state.stage.tiles[0]![0]!.occupant = { name: "monster-0-0", type: ActorType.Monster };
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -261,7 +261,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
   it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {
     const state = sessions.get(sessionId)!;
     state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    delete state.stage.tiles[0]![0]!.actor;
+    delete state.stage.tiles[0]![0]!.occupant;
     delete (state.stage.tiles[0]![0]! as { agentName?: string }).agentName;
 
     const res = await request(app)

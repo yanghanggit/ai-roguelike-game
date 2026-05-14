@@ -16,9 +16,6 @@ export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
 
 export const ActorType = {
   Monster: "monster",
-  Treasure: "treasure",
-  Item: "item",
-  Special: "special",
 } as const;
 
 export type ActorType = (typeof ActorType)[keyof typeof ActorType];
@@ -31,12 +28,9 @@ export const TERRAIN_GLYPHS: Record<TerrainType, string> = {
   [TerrainType.Entrance]: ">",
 };
 
-export const ACTOR_GLYPHS: Record<ActorType, string> = {
-  [ActorType.Monster]: "E",
-  [ActorType.Treasure]: "$",
-  [ActorType.Item]: "!",
-  [ActorType.Special]: "?",
-};
+export const ACTOR_GLYPH = "E";
+export const SPECIAL_GLYPH = "?";
+export const ITEM_GLYPH = "!";
 
 // ─── Terrain ─────────────────────────────────────────────────────────────────
 
@@ -48,7 +42,7 @@ export interface Terrain {
 
 // ─── Actor ───────────────────────────────────────────────────────────────────
 
-/** 占据格子的实体（怪物、宝箱、物品、特殊）。`name` 与 `GameState.agents` 中的键一致。 */
+/** 主动实体（怪物、特殊）。`name` 与 `GameState.agents` 中的键一致。 */
 export interface Actor {
   readonly name: string;
   type: ActorType;
@@ -56,30 +50,46 @@ export interface Actor {
   systemPrompt?: string;
 }
 
+// ─── Item ────────────────────────────────────────────────────────────────────
+
+/** 被动物品实体，与 Actor 平级，占据格子但无 AI 行为。 */
+export interface Item {
+  readonly type: "item";
+  readonly name: string;
+}
+
+// ─── Special ────────────────────────────────────────────────────────────────
+
+/** 特殊事件实体，与 Actor/Item 平级，触发特殊叙事效果。 */
+export interface Special {
+  readonly type: "special";
+  readonly name: string;
+}
+
+// ─── Occupant ────────────────────────────────────────────────────────────────
+
+/** 占据格子的抽象占有者，通过 `type` 字段区分：`Actor`（"monster"）、`Item`（"item"）或 `Special`（"special"）。 */
+export type Occupant = Actor | Item | Special;
+
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
 export interface Tile {
   terrain: Terrain;
   revealed: boolean;
-  actor?: Actor;
+  occupant?: Occupant;
 }
 
 // ─── Glyph ───────────────────────────────────────────────────────────────────
 
-/** 返回格子的单个显示字符（ASCII 地图等紧凑场景用）。 */
-export function getTileChar(tile: Tile): string {
-  return tile.actor ? ACTOR_GLYPHS[tile.actor.type] : TERRAIN_GLYPHS[tile.terrain.type];
-}
-
-/** 返回格子的完整信息字符串（多行）：actor 类型+名称 / terrain 类型+名称。 */
+/** 返回格子的完整信息字符串（多行）：occupant 类型+名称 / terrain 类型+名称。 */
 export function getTileGlyph(tile: Tile): string {
   const lines: string[] = [];
-  if (tile.actor) {
-    lines.push(`${ACTOR_GLYPHS[tile.actor.type]} ${tile.actor.name}`);
-    //lines.push(tile.actor.name);
+  if (tile.occupant) {
+    const { type } = tile.occupant;
+    const glyph = type === "item" ? ITEM_GLYPH : type === "special" ? SPECIAL_GLYPH : ACTOR_GLYPH;
+    lines.push(`${glyph} ${tile.occupant.name}`);
   }
   lines.push(`${TERRAIN_GLYPHS[tile.terrain.type]} ${tile.terrain.name}`);
-  //lines.push(tile.terrain.name);
   return lines.join("\n");
 }
 

@@ -5,11 +5,16 @@
  */
 
 import { TerrainType, ActorType } from "@roguelike/shared";
-import type { GameState, Terrain } from "@roguelike/shared";
+import type { GameState, Occupant, Terrain } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
-import { TERRAIN_LOG_MESSAGES, ACTOR_LOG_MESSAGES } from "./game-stage.js";
+import {
+  TERRAIN_LOG_MESSAGES,
+  ACTOR_LOG_MESSAGE,
+  SPECIAL_LOG_MESSAGE,
+  ITEM_LOG_MESSAGE,
+} from "./game-stage.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "GameActions" });
@@ -21,8 +26,8 @@ export interface ApplyRevealResult {
   error?: string;
   /** 本次揭开的格子地形（`ok` 为 `true` 时有值）。 */
   terrain?: Terrain;
-  /** 本次揭开的 Actor 类型（有 Actor 时有值）。 */
-  actorType?: ActorType;
+  /** 本次揭开的占有者类型（有占有者时有值）。 */
+  occupantType?: Occupant["type"];
   /** 本回合追加的日志消息（`ok` 为 `true` 且格子首次揭开时有值）。 */
   message?: string;
   /** Monster 格子专用：关联的 `GameAgent` 名称，供调用方激活对应 agent。 */
@@ -45,16 +50,25 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
     return { ok: false, error: `坐标 (${x}, ${y}) 超出地图范围` };
   }
   if (tile.revealed) {
-    return { ok: true, terrain: tile.terrain, actorType: tile.actor?.type };
+    return { ok: true, terrain: tile.terrain, occupantType: tile.occupant?.type };
   }
 
   tile.revealed = true;
   state.turn += 1;
-  let message = tile.actor
-    ? ACTOR_LOG_MESSAGES[tile.actor.type]
-    : TERRAIN_LOG_MESSAGES[tile.terrain.type];
-  if (tile.actor?.type === ActorType.Monster) {
-    const agent = state.agents[tile.actor.name];
+  let message: string;
+  if (tile.occupant) {
+    const { type } = tile.occupant;
+    message =
+      type === "item"
+        ? ITEM_LOG_MESSAGE
+        : type === "special"
+          ? SPECIAL_LOG_MESSAGE
+          : ACTOR_LOG_MESSAGE;
+  } else {
+    message = TERRAIN_LOG_MESSAGES[tile.terrain.type];
+  }
+  if (tile.occupant?.type === ActorType.Monster) {
+    const agent = state.agents[tile.occupant.name];
     if (agent) message = `${message}==>【${agent.name}】`;
   }
   state.log = [...state.log, { turn: state.turn, message }];
@@ -62,9 +76,9 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
   return {
     ok: true,
     terrain: tile.terrain,
-    actorType: tile.actor?.type,
+    occupantType: tile.occupant?.type,
     message,
-    agentName: tile.actor?.name,
+    agentName: tile.occupant?.name,
   };
 }
 

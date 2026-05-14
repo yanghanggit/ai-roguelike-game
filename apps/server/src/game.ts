@@ -26,8 +26,8 @@ export function initializeGame(sessionId: string, stage: Stage, player: Player):
   const agents: Record<string, GameAgent> = {};
   for (const row of stage.tiles) {
     for (const tile of row) {
-      if (tile.actor?.type === ActorType.Monster && tile.actor.systemPrompt) {
-        agents[tile.actor.name] = new GameAgent(tile.actor.name, tile.actor.systemPrompt);
+      if (tile.occupant?.type === ActorType.Monster && tile.occupant.systemPrompt) {
+        agents[tile.occupant.name] = new GameAgent(tile.occupant.name, tile.occupant.systemPrompt);
       }
     }
   }

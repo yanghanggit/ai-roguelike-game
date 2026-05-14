@@ -6,13 +6,16 @@ import {
   TerrainType,
   ActorType,
   getTileGlyph,
-  getTileChar,
   TERRAIN_GLYPHS,
-  ACTOR_GLYPHS,
+  ACTOR_GLYPH,
+  SPECIAL_GLYPH,
+  ITEM_GLYPH,
 } from "@roguelike/shared";
 import {
   TERRAIN_LOG_MESSAGES,
-  ACTOR_LOG_MESSAGES,
+  ACTOR_LOG_MESSAGE,
+  SPECIAL_LOG_MESSAGE,
+  ITEM_LOG_MESSAGE,
   createStage,
   DEV_STAGE_LAYOUT,
 } from "./game-stage.js";
@@ -45,10 +48,10 @@ describe("LOG_MESSAGES", () => {
     }
   });
 
-  it("每种 ActorType 都有对应的中文消息", () => {
-    for (const type of Object.values(ActorType)) {
-      expect(typeof ACTOR_LOG_MESSAGES[type]).toBe("string");
-      expect(ACTOR_LOG_MESSAGES[type].length).toBeGreaterThan(0);
+  it("每种占有者类型都有对应的中文消息", () => {
+    for (const msg of [ACTOR_LOG_MESSAGE, ITEM_LOG_MESSAGE, SPECIAL_LOG_MESSAGE]) {
+      expect(typeof msg).toBe("string");
+      expect(msg.length).toBeGreaterThan(0);
     }
   });
 });
@@ -67,16 +70,6 @@ describe("createStage", () => {
     stage.tiles.flat().forEach((tile) => expect(tile.revealed).toBe(false));
   });
 
-  it("每个格子的 glyph 与 terrain/actor 一致", () => {
-    const stage = createStage(DEV_STAGE_LAYOUT);
-    stage.tiles.flat().forEach((tile) => {
-      const expected = tile.actor
-        ? ACTOR_GLYPHS[tile.actor.type]
-        : TERRAIN_GLYPHS[tile.terrain.type];
-      expect(getTileChar(tile)).toBe(expected);
-    });
-  });
-
   it("所有格子的 terrain 是合法的 TerrainType", () => {
     const validTerrains = new Set(Object.values(TerrainType));
     createStage(DEV_STAGE_LAYOUT)
@@ -88,14 +81,14 @@ describe("createStage", () => {
     const stage = createStage(DEV_STAGE_LAYOUT);
     // dev 地图中 monster 在 (0,1)
     const monsterTile = stage.tiles[1]![0]!;
-    expect(monsterTile.actor?.type).toBe(ActorType.Monster);
-    expect(monsterTile.actor?.name).toBe("怪物.骷髅战士");
+    expect(monsterTile.occupant?.type).toBe(ActorType.Monster);
+    expect(monsterTile.occupant?.name).toBe("怪物.骷髅战士");
   });
 
   it("有 Actor 的格子地形由 CellSpec 决定（均为 Floor）", () => {
     const stage = createStage(DEV_STAGE_LAYOUT);
     for (const tile of stage.tiles.flat()) {
-      if (tile.actor) {
+      if (tile.occupant) {
         expect(tile.terrain.type).toBe(TerrainType.Floor);
       }
     }
@@ -202,8 +195,12 @@ describe("applyReveal", () => {
   it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
     const result = applyReveal(state, 0, 0);
     const tile = state.stage.tiles[0]![0]!;
-    const expectedMsg = tile.actor
-      ? ACTOR_LOG_MESSAGES[tile.actor.type]
+    const expectedMsg = tile.occupant
+      ? tile.occupant.type === "item"
+        ? ITEM_LOG_MESSAGE
+        : tile.occupant.type === "special"
+          ? SPECIAL_LOG_MESSAGE
+          : ACTOR_LOG_MESSAGE
       : TERRAIN_LOG_MESSAGES[tile.terrain.type];
     expect(result.message).toContain(expectedMsg);
   });
@@ -211,7 +208,7 @@ describe("applyReveal", () => {
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
     // 强制将 (0,0) 设为 Monster 格子后揭开
     state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    state.stage.tiles[0]![0]!.actor = { name: "monster-0-0", type: ActorType.Monster };
+    state.stage.tiles[0]![0]!.occupant = { name: "monster-0-0", type: ActorType.Monster };
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBe("monster-0-0");
   });
@@ -219,7 +216,7 @@ describe("applyReveal", () => {
   it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
     // 强制将 (0,0) 设为 Floor 并清除 actor
     state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
-    delete state.stage.tiles[0]![0]!.actor;
+    delete state.stage.tiles[0]![0]!.occupant;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();
   });
