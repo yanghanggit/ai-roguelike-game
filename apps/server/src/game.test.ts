@@ -303,8 +303,19 @@ describe("triggerAgentThinking", () => {
           choices: [
             {
               message: {
-                content: '{"actionType":"act","actType":"strike","summary":"怪物发动攻击！"}',
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_001",
+                    type: "function",
+                    function: {
+                      name: "strike",
+                      arguments: JSON.stringify({ target: "player", summary: "怪物发动攻击！" }),
+                    },
+                  },
+                ],
               },
+              finish_reason: "tool_calls",
             },
           ],
           usage: {
@@ -336,15 +347,27 @@ describe("triggerAgentThinking", () => {
       vi.fn().mockImplementation(async () => {
         callCount++;
         const summary = callCount === 1 ? "怪物A攻击！" : "怪物B防御！";
-        const content = JSON.stringify({
-          actionType: "act",
-          actType: "strike",
-          summary,
-        });
         return {
           ok: true,
           json: async () => ({
-            choices: [{ message: { content } }],
+            choices: [
+              {
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: `call_00${callCount}`,
+                      type: "function",
+                      function: {
+                        name: "strike",
+                        arguments: JSON.stringify({ target: "player", summary }),
+                      },
+                    },
+                  ],
+                },
+                finish_reason: "tool_calls",
+              },
+            ],
             usage: {
               prompt_tokens: 0,
               completion_tokens: 0,
@@ -379,8 +402,19 @@ describe("triggerAgentThinking", () => {
           choices: [
             {
               message: {
-                content: '{"actionType":"act","actType":"strike","summary":"AI 行动"}',
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_001",
+                    type: "function",
+                    function: {
+                      name: "strike",
+                      arguments: JSON.stringify({ target: "player", summary: "AI 行动" }),
+                    },
+                  },
+                ],
               },
+              finish_reason: "tool_calls",
             },
           ],
           usage: {

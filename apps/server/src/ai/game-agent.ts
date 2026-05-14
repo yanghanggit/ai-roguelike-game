@@ -12,9 +12,11 @@ import {
   type SystemMessage,
   type HumanMessage,
   type AIMessage,
+  type ToolMessage,
   systemMessage,
   humanMessage,
   aiMessage,
+  toolMessage,
 } from "./messages.js";
 
 /**
@@ -71,6 +73,15 @@ export class GameAgent {
    */
   addAIMessage(content: string, additionalKwargs: Record<string, unknown> = {}): void {
     this._context.push(aiMessage(content, additionalKwargs) as AIMessage);
+  }
+
+  /**
+   * 向上下文追加一条工具调用结果消息。
+   * @param toolCallId - 对应 LLM 发起的 tool call id。
+   * @param content - 工具执行结果文本。
+   */
+  addToolMessage(toolCallId: string, content: string): void {
+    this._context.push(toolMessage(toolCallId, content) as ToolMessage);
   }
 
   /** 控制 JSON 序列化输出，确保存档字段为 `context` 而非 `_context`。 */
