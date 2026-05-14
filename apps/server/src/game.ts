@@ -29,9 +29,9 @@ export function initializeGame(sessionId: string, stage: Stage, player: Player):
   let monsterIndex = 0;
   for (const row of stage.tiles) {
     for (const tile of row) {
-      if (tile.type === TileType.Monster && tile.agentName) {
+      if (tile.type === TileType.Monster && tile.actor) {
         const template = MOCK_MONSTERS[monsterIndex % MOCK_MONSTERS.length]!;
-        agents[tile.agentName] = new GameAgent(template.name, template.systemPrompt);
+        agents[tile.actor.name] = new GameAgent(template.name, template.systemPrompt);
         tile.glyph = `E:${extractLabel(template.name)}`;
         monsterIndex++;
       }

@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import { GLYPHS, LOG_MESSAGES, createRandomStage, createDevStage } from "./game-stage.js";
+import { Actor } from "./actor.js";
 import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
 import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
@@ -80,7 +81,7 @@ describe("createRandomStage", () => {
       .forEach((tile) => expect(validTypes.has(tile.type)).toBe(true));
   });
 
-  it("Monster 格子具有 agentName，格式为 monster-x-y", () => {
+  it("Monster 格子具有 actor，其 name 格式为 monster-x-y", () => {
     // 多次采样确保命中 Monster 格子
     let found = false;
     for (let attempt = 0; attempt < 30 && !found; attempt++) {
@@ -89,7 +90,7 @@ describe("createRandomStage", () => {
         for (let x = 0; x < 4; x++) {
           const tile = stage.tiles[y]![x]!;
           if (tile.type === TileType.Monster) {
-            expect(tile.agentName).toBe(`monster-${x}-${y}`);
+            expect(tile.actor?.name).toBe(`monster-${x}-${y}`);
             found = true;
           }
         }
@@ -97,13 +98,13 @@ describe("createRandomStage", () => {
     }
   });
 
-  it("非 Monster 格子的 agentName 为 undefined", () => {
+  it("非 Monster 格子的 actor 为 undefined", () => {
     let hasNonMonster = false;
     for (let attempt = 0; attempt < 30 && !hasNonMonster; attempt++) {
       const stage = createRandomStage(4);
       for (const tile of stage.tiles.flat()) {
         if (tile.type !== TileType.Monster) {
-          expect(tile.agentName).toBeUndefined();
+          expect(tile.actor).toBeUndefined();
           hasNonMonster = true;
         }
       }
@@ -232,17 +233,17 @@ describe("applyReveal", () => {
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
     // 强制将 (0,0) 设为 Monster 格子后揭开
     state.stage.tiles[0]![0]!.type = TileType.Monster;
-    (state.stage.tiles[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
     state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Monster];
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBe("monster-0-0");
   });
 
   it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
-    // 强制将 (0,0) 设为 Floor 并清除 agentName
+    // 强制将 (0,0) 设为 Floor 并清除 actor
     state.stage.tiles[0]![0]!.type = TileType.Floor;
     state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Floor];
-    delete (state.stage.tiles[0]![0]! as { agentName?: string }).agentName;
+    delete state.stage.tiles[0]![0]!.actor;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();
   });
@@ -251,9 +252,9 @@ describe("applyReveal", () => {
 // ─── activateMonsterAgent ────────────────────────────────────────────────────────────────
 
 describe("activateMonsterAgent", () => {
-  it("将指定 agentName 的 GameAgent 设为 激活", () => {
+  it("将指定名称的 GameAgent 设为 激活", () => {
     const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
-    // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
+    // dev 地图中 monster 在 (0,1)，actor.name = "monster-0-1"
     expect(state.activatedTurns["monster-0-1"]).toBeUndefined();
     activateAgent(state, "monster-0-1");
     expect(state.activatedTurns["monster-0-1"]).toBeDefined();

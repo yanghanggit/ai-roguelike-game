@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app, sessions } from "./app.js";
 import { createRandomStage } from "./game-stage.js";
+import { Actor } from "./actor.js";
 import type { GameState } from "@roguelike/shared";
 import { TileType } from "@roguelike/shared";
 import { GameAgent as GameAgentClass } from "./ai/index.js";
@@ -105,7 +106,7 @@ describe("POST /game/player-action — reveal", () => {
     // 确保 (0,0) 是非怪物格
     const state0 = sessions.get(sessionId)!;
     state0.stage.tiles[0]![0]!.type = TileType.Floor;
-    delete (state0.stage.tiles[0]![0]! as { agentName?: string }).agentName;
+    delete state0.stage.tiles[0]![0]!.actor;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -119,7 +120,7 @@ describe("POST /game/player-action — reveal", () => {
   it("非怪物格 reveal 后，HTTP 响应 phase 为 dungeon", async () => {
     const state0 = sessions.get(sessionId)!;
     state0.stage.tiles[0]![0]!.type = TileType.Floor;
-    delete (state0.stage.tiles[0]![0]! as { agentName?: string }).agentName;
+    delete state0.stage.tiles[0]![0]!.actor;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -212,7 +213,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     // 强制 (0,0) 为 Monster，并在 agents 中预建立对应的 agent
     const state = sessions.get(sessionId)!;
     state.stage.tiles[0]![0]!.type = TileType.Monster;
-    state.stage.tiles[0]![0]!.agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -232,7 +233,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
 
     const state = sessions.get(sessionId)!;
     state.stage.tiles[0]![0]!.type = TileType.Monster;
-    state.stage.tiles[0]![0]!.agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0");
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)

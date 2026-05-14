@@ -50,13 +50,13 @@ export function applyReveal(state: GameState, x: number, y: number): ApplyReveal
   tile.revealed = true;
   state.turn += 1;
   let message = LOG_MESSAGES[tile.type];
-  if (tile.type === TileType.Monster && tile.agentName) {
-    const agent = state.agents[tile.agentName];
+  if (tile.type === TileType.Monster && tile.actor) {
+    const agent = state.agents[tile.actor.name];
     if (agent) message = `${message}==>【${extractLabel(agent.name)}】`;
   }
   state.log = [...state.log, { turn: state.turn, message }];
 
-  return { ok: true, tileType: tile.type, message, agentName: tile.agentName };
+  return { ok: true, tileType: tile.type, message, agentName: tile.actor?.name };
 }
 
 // ─── Agent activation ─────────────────────────────────────────────────────────

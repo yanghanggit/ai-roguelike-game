@@ -7,6 +7,7 @@
 
 import { TileType } from "@roguelike/shared";
 import type { Stage, StageSize, Tile } from "@roguelike/shared";
+import { Actor } from "./actor.js";
 
 // ─── Glyphs & weights ─────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ function weightedRandom(): TileType {
  * 生成指定尺寸的随机地图。
  *
  * 保证包含至少一个入口（3×3 地图 1 个，4×4 地图 2 个），
- * 其余格子按权重随机分配，Monster 格子自动赋予 `agentName`。
+ * 其余格子按权重随机分配，Monster 格子自动赋予 `actor`。
  *
  * @param size - 地图边长，支持 `3` 或 `4`。
  * @returns 尺寸为 `size × size` 的二维 `Tile` 数组，所有格子初始为未揭开状态。
@@ -80,7 +81,7 @@ export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
       const type = pool[y * size + x]!;
       const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
       if (type === TileType.Monster) {
-        tile.agentName = `monster-${x}-${y}`;
+        tile.actor = new Actor(`monster-${x}-${y}`);
       }
       row.push(tile);
     }
@@ -102,7 +103,7 @@ export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
  *
  * 各元素唯一坐标：
  *   Entrance  (0,0)
- *   Monster   (0,1)  → agentName = "monster-0-1"
+ *   Monster   (0,1)  → actor.name = "monster-0-1"
  *   Treasure  (3,1)
  *   Item      (1,2)
  *   Special   (3,3)
@@ -121,7 +122,7 @@ export function createDevStage(name = "dev"): Stage {
     row.map((type, x) => {
       const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
       if (type === TileType.Monster) {
-        tile.agentName = `monster-${x}-${y}`;
+        tile.actor = new Actor(`monster-${x}-${y}`);
       }
       return tile;
     }),

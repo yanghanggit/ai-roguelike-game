@@ -2,7 +2,7 @@ import type { StageSize } from "./config.js";
 export { PORTS, STAGE_SIZES } from "./config.js";
 export type { StageSize } from "./config.js";
 
-// ─── Tile ────────────────────────────────────────────────────────────────────
+// ─── TileType ────────────────────────────────────────────────────────────────
 
 export const TileType = {
   Floor: "floor",
@@ -16,15 +16,24 @@ export const TileType = {
 
 export type TileType = (typeof TileType)[keyof typeof TileType];
 
+// ─── Actor ───────────────────────────────────────────────────────────────────
+
+/** 占据格子的实体（当前为怪物）。`name` 与 `GameState.agents` 中的键一致。 */
+export interface Actor {
+  readonly name: string;
+}
+
+// ─── Tile ────────────────────────────────────────────────────────────────────
+
 export interface Tile {
   type: TileType;
   glyph: string;
   revealed: boolean;
-  /** Monster 格子专用：关联 GameAgent 的 name，用于在 GameState.agents 中查找上下文 */
-  agentName?: string;
+  /** Monster 格子专用：占据该格子的 Actor，其 name 用于在 GameState.agents 中查找上下文 */
+  actor?: Actor;
 }
 
-// ─── Map ─────────────────────────────────────────────────────────────────────
+// ─── Stage ──────────────────────────────────────────────────────────────────
 
 export interface Stage {
   name: string;
