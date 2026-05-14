@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PORTS, MAP_SIZES } from "./index.js";
+import { PORTS, STAGE_SIZES } from "./index.js";
 
 describe("Config — PORTS", () => {
   it("server port is 3001", () => {
@@ -11,13 +11,13 @@ describe("Config — PORTS", () => {
   });
 });
 
-describe("Config — MAP_SIZES", () => {
+describe("Config — STAGE_SIZES", () => {
   it("contains 3 and 4", () => {
-    expect(MAP_SIZES).toContain(3);
-    expect(MAP_SIZES).toContain(4);
+    expect(STAGE_SIZES).toContain(3);
+    expect(STAGE_SIZES).toContain(4);
   });
 
   it("has exactly two sizes", () => {
-    expect(MAP_SIZES).toHaveLength(2);
+    expect(STAGE_SIZES).toHaveLength(2);
   });
 });

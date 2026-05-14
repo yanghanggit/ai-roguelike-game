@@ -46,8 +46,8 @@ export const queryStatusTool: AgentTool = {
     if (target === "player") {
       result = `玩家状态：HP ${state.player.hp}/${state.player.maxHp}，攻击 ${state.player.attack}，防御 ${state.player.defense}。`;
     } else if (target === "dungeon") {
-      const revealedCount = state.map.flat().filter((t) => t.revealed).length;
-      const totalCount = state.mapSize * state.mapSize;
+      const revealedCount = state.stage.tiles.flat().filter((t) => t.revealed).length;
+      const totalCount = state.stageSize * state.stageSize;
       const activeMonsters = Object.keys(state.activatedTurns)
         .filter((name) => name !== agent.name)
         .map((name) => state.agents[name])

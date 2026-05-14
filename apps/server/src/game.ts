@@ -5,7 +5,7 @@
  */
 
 import { TileType } from "@roguelike/shared";
-import type { GameMap, GameState, MapSize, Player } from "@roguelike/shared";
+import type { Stage, GameState, StageSize, Player } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { MOCK_MONSTERS } from "./mock-monsters.js";
 import { extractLabel } from "./utils.js";
@@ -22,12 +22,12 @@ import { extractLabel } from "./utils.js";
  * @param player - 玩家初始属性对象，直接存入状态不做拷贝。
  * @returns 完整的初始 `GameState`，`turn` 为 0，`log` 为空数组。
  */
-export function initializeGame(sessionId: string, map: GameMap, player: Player): GameState {
-  const mapSize = map.length as MapSize;
+export function initializeGame(sessionId: string, stage: Stage, player: Player): GameState {
+  const stageSize = stage.tiles.length as StageSize;
 
   const agents: Record<string, GameAgent> = {};
   let monsterIndex = 0;
-  for (const row of map) {
+  for (const row of stage.tiles) {
     for (const tile of row) {
       if (tile.type === TileType.Monster && tile.agentName) {
         const template = MOCK_MONSTERS[monsterIndex % MOCK_MONSTERS.length]!;
@@ -42,9 +42,9 @@ export function initializeGame(sessionId: string, map: GameMap, player: Player):
     sessionId,
     turn: 0,
     phase: "player",
-    mapSize,
+    stageSize,
     player,
-    map,
+    stage,
     log: [],
     agents,
     activatedTurns: {},

@@ -6,6 +6,6 @@ export const PORTS = {
   client: 5173,
 } as const;
 
-/** The two valid map sizes. All dungeon rooms are one of these. */
-export const MAP_SIZES = [3, 4] as const;
-export type MapSize = 3 | 4;
+/** The two valid stage sizes. All dungeon rooms are one of these. */
+export const STAGE_SIZES = [3, 4] as const;
+export type StageSize = 3 | 4;

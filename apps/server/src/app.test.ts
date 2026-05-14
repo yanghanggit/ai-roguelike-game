@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app, sessions } from "./app.js";
-import { createRandomMap } from "./game-map.js";
+import { createRandomStage } from "./game-stage.js";
 import type { GameState } from "@roguelike/shared";
 import { TileType } from "@roguelike/shared";
 import { GameAgent as GameAgentClass } from "./ai/index.js";
@@ -58,9 +58,9 @@ describe("POST /game/start", () => {
     const res = await request(app).post("/game/start");
     expect(res.status).toBe(200);
     const state: GameState = res.body.state;
-    expect([3, 4]).toContain(state.mapSize);
-    expect(state.map).toHaveLength(state.mapSize);
-    expect(state.map[0]).toHaveLength(state.mapSize);
+    expect([3, 4]).toContain(state.stageSize);
+    expect(state.stage.tiles).toHaveLength(state.stageSize);
+    expect(state.stage.tiles[0]).toHaveLength(state.stageSize);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
@@ -68,14 +68,14 @@ describe("POST /game/start", () => {
   it("all tiles start hidden (revealed=false)", async () => {
     const res = await request(app).post("/game/start");
     const state: GameState = res.body.state;
-    const allHidden = state.map.every((row) => row.every((tile) => !tile.revealed));
+    const allHidden = state.stage.tiles.every((row) => row.every((tile) => !tile.revealed));
     expect(allHidden).toBe(true);
   });
 
   it("map has at least 1 entrance tile", async () => {
     const res = await request(app).post("/game/start");
     const state: GameState = res.body.state;
-    const entranceCount = state.map.flat().filter((t) => t.type === "entrance").length;
+    const entranceCount = state.stage.tiles.flat().filter((t) => t.type === "entrance").length;
     expect(entranceCount).toBeGreaterThanOrEqual(1);
   });
 
@@ -104,22 +104,22 @@ describe("POST /game/player-action — reveal", () => {
   it("reveals a hidden tile and increments turn", async () => {
     // 确保 (0,0) 是非怪物格
     const state0 = sessions.get(sessionId)!;
-    state0.map[0]![0]!.type = TileType.Floor;
-    delete (state0.map[0]![0]! as { agentName?: string }).agentName;
+    state0.stage.tiles[0]![0]!.type = TileType.Floor;
+    delete (state0.stage.tiles[0]![0]! as { agentName?: string }).agentName;
 
     const res = await request(app)
       .post("/game/player-action")
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
     expect(res.status).toBe(200);
     const state: GameState = res.body.state;
-    expect(state.map[0]![0]!.revealed).toBe(true);
+    expect(state.stage.tiles[0]![0]!.revealed).toBe(true);
     expect(state.turn).toBe(1);
   });
 
   it("非怪物格 reveal 后，HTTP 响应 phase 为 dungeon", async () => {
     const state0 = sessions.get(sessionId)!;
-    state0.map[0]![0]!.type = TileType.Floor;
-    delete (state0.map[0]![0]! as { agentName?: string }).agentName;
+    state0.stage.tiles[0]![0]!.type = TileType.Floor;
+    delete (state0.stage.tiles[0]![0]! as { agentName?: string }).agentName;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -147,10 +147,10 @@ describe("POST /game/player-action — reveal", () => {
   });
 
   it("revealing an already-revealed tile does not increment turn", async () => {
-    // 事前に (0,0) を revealed = true に設定することで phase が変わらず再テストできる
+    // 通过预先将 (0,0) 设置为 revealed = true，可以在不改变的情况下重新测试该阶段。
     const state0 = sessions.get(sessionId)!;
-    state0.map[0]![0]!.revealed = true;
-    state0.map[0]![0]!.type = TileType.Floor;
+    state0.stage.tiles[0]![0]!.revealed = true;
+    state0.stage.tiles[0]![0]!.type = TileType.Floor;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -167,26 +167,26 @@ describe("POST /game/player-action — reveal", () => {
   });
 });
 
-describe("createRandomMap", () => {
+describe("createRandomStage", () => {
   it("creates a 3×3 map with at least 1 entrance", () => {
-    const map = createRandomMap(3);
-    expect(map).toHaveLength(3);
-    expect(map[0]).toHaveLength(3);
-    const entrances = map.flat().filter((t) => t.type === "entrance").length;
+    const stage = createRandomStage(3);
+    expect(stage.tiles).toHaveLength(3);
+    expect(stage.tiles[0]).toHaveLength(3);
+    const entrances = stage.tiles.flat().filter((t) => t.type === "entrance").length;
     expect(entrances).toBeGreaterThanOrEqual(1);
   });
 
   it("creates a 4×4 map with at least 2 entrances", () => {
-    const map = createRandomMap(4);
-    expect(map).toHaveLength(4);
-    expect(map[0]).toHaveLength(4);
-    const entrances = map.flat().filter((t) => t.type === "entrance").length;
+    const stage = createRandomStage(4);
+    expect(stage.tiles).toHaveLength(4);
+    expect(stage.tiles[0]).toHaveLength(4);
+    const entrances = stage.tiles.flat().filter((t) => t.type === "entrance").length;
     expect(entrances).toBeGreaterThanOrEqual(2);
   });
 
   it("all tiles start unrevealed", () => {
-    const map = createRandomMap(4);
-    expect(map.flat().every((t) => !t.revealed)).toBe(true);
+    const stage = createRandomStage(4);
+    expect(stage.tiles.flat().every((t) => !t.revealed)).toBe(true);
   });
 });
 
@@ -211,8 +211,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
   it("reveal Monster 格子后，agent 已激活，phase 变为 dungeon", async () => {
     // 强制 (0,0) 为 Monster，并在 agents 中预建立对应的 agent
     const state = sessions.get(sessionId)!;
-    state.map[0]![0]!.type = TileType.Monster;
-    state.map[0]![0]!.agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.type = TileType.Monster;
+    state.stage.tiles[0]![0]!.agentName = "monster-0-0";
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -223,16 +223,16 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
     const returned: GameState = res.body.state;
     expect(returned.agents["monster-0-0"]).toBeDefined();
     expect(returned.activatedTurns["monster-0-0"]).toBe(1);
-    // 怪物揭开也新タイルなので dungeon phase に遷移する
+    // reveal 后立即返回的 state 中 phase 已变为 dungeon，但尚未调用 dungeon-advance，所以 AI 台词还未出现
     expect(returned.phase).toBe("dungeon");
   });
 
-  it("reveal Monster 后，dungeon-advance 前は AI 未行動（log 末尾に AI 台詞なし）", async () => {
+  it("reveal Monster 后，dungeon-advance 此前，人工智能没有采取任何行动（日志末尾没有人工智能对话）。", async () => {
     mockFetch("我决定攻击玩家！");
 
     const state = sessions.get(sessionId)!;
-    state.map[0]![0]!.type = TileType.Monster;
-    state.map[0]![0]!.agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.type = TileType.Monster;
+    state.stage.tiles[0]![0]!.agentName = "monster-0-0";
     state.agents["monster-0-0"] = new GameAgentClass("怪物.测试怪物", "测试怪物");
 
     const res = await request(app)
@@ -240,7 +240,7 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
       .send({ sessionId, action: { type: "reveal", x: 0, y: 0 } });
 
     const returned: GameState = res.body.state;
-    // agent は activatedTurns に登録済み、phase は dungeon
+    // 确认怪物已激活且 phase 已变为 dungeon，但尚未调用 dungeon-advance，所以 AI 台词还未出现
     expect(returned.activatedTurns["monster-0-0"]).toBeDefined();
     expect(returned.phase).toBe("dungeon");
     // dungeon-advance を呼んでいないので AI 台詞はまだ現れない
@@ -266,8 +266,8 @@ describe("POST /game/player-action — Monster 激活 GameAgent", () => {
 
   it("reveal 非 Monster 格子后，state.agents 仍为空", async () => {
     const state = sessions.get(sessionId)!;
-    state.map[0]![0]!.type = TileType.Floor;
-    delete (state.map[0]![0]! as { agentName?: string }).agentName;
+    state.stage.tiles[0]![0]!.type = TileType.Floor;
+    delete (state.stage.tiles[0]![0]! as { agentName?: string }).agentName;
 
     const res = await request(app)
       .post("/game/player-action")
@@ -320,10 +320,10 @@ describe("POST /game/dungeon-advance", () => {
     expect(res.status).toBe(404);
   });
 
-  it("dungeon phase のとき、AI 思考後に phase が player に戻る", async () => {
+  it("在地牢阶段，AI 完成思考后，该阶段将交还给玩家。", async () => {
     const state = sessions.get(sessionId)!;
     state.phase = "dungeon";
-    // 激活済みの agent がなければ triggerAgentThinking は即座に返る（mock 不要）
+    //
     const res = await request(app).post("/game/dungeon-advance").send({ sessionId });
     expect(res.status).toBe(200);
     expect(res.body.state.phase).toBe("player");

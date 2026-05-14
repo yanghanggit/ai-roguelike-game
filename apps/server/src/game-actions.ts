@@ -10,7 +10,7 @@ import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
 import { extractLabel } from "./utils.js";
-import { LOG_MESSAGES } from "./game-map.js";
+import { LOG_MESSAGES } from "./game-stage.js";
 import { logger } from "./logger.js";
 
 const log = logger.child({ module: "GameActions" });
@@ -39,7 +39,7 @@ export interface ApplyRevealResult {
  * @returns 揭开结果，包含是否成功、格子类型、日志消息及可选的 agentName。
  */
 export function applyReveal(state: GameState, x: number, y: number): ApplyRevealResult {
-  const tile = state.map[y]?.[x];
+  const tile = state.stage.tiles[y]?.[x];
   if (!tile) {
     return { ok: false, error: `坐标 (${x}, ${y}) 超出地图范围` };
   }

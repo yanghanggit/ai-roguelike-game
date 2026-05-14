@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
-import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
+import { GLYPHS, LOG_MESSAGES, createRandomStage, createDevStage } from "./game-stage.js";
 import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
 import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
@@ -34,49 +34,49 @@ describe("LOG_MESSAGES", () => {
   });
 });
 
-// ─── createRandomMap ────────────────────────────────────────────────────────
+// ─── createRandomStage ────────────────────────────────────────────────────────
 
-describe("createRandomMap", () => {
+describe("createRandomStage", () => {
   it("3×3 地图有正确的行列数", () => {
-    const map = createRandomMap(3);
-    expect(map).toHaveLength(3);
-    map.forEach((row) => expect(row).toHaveLength(3));
+    const stage = createRandomStage(3);
+    expect(stage.tiles).toHaveLength(3);
+    stage.tiles.forEach((row) => expect(row).toHaveLength(3));
   });
 
   it("4×4 地图有正确的行列数", () => {
-    const map = createRandomMap(4);
-    expect(map).toHaveLength(4);
-    map.forEach((row) => expect(row).toHaveLength(4));
+    const stage = createRandomStage(4);
+    expect(stage.tiles).toHaveLength(4);
+    stage.tiles.forEach((row) => expect(row).toHaveLength(4));
   });
 
   it("3×3 地图包含恰好 1 个 Entrance", () => {
-    const map = createRandomMap(3);
-    const count = map.flat().filter((t) => t.type === TileType.Entrance).length;
+    const stage = createRandomStage(3);
+    const count = stage.tiles.flat().filter((t) => t.type === TileType.Entrance).length;
     expect(count).toBe(1);
   });
 
   it("4×4 地图包含恰好 2 个 Entrance", () => {
-    const map = createRandomMap(4);
-    const count = map.flat().filter((t) => t.type === TileType.Entrance).length;
+    const stage = createRandomStage(4);
+    const count = stage.tiles.flat().filter((t) => t.type === TileType.Entrance).length;
     expect(count).toBe(2);
   });
 
   it("所有格子初始为未揭开（revealed=false）", () => {
-    const map = createRandomMap(4);
-    map.flat().forEach((tile) => expect(tile.revealed).toBe(false));
+    const stage = createRandomStage(4);
+    stage.tiles.flat().forEach((tile) => expect(tile.revealed).toBe(false));
   });
 
   it("每个格子的 glyph 与 type 一致", () => {
-    const map = createRandomMap(4);
-    map.flat().forEach((tile) => {
+    const stage = createRandomStage(4);
+    stage.tiles.flat().forEach((tile) => {
       expect(tile.glyph).toBe(GLYPHS[tile.type]);
     });
   });
 
   it("所有 type 值都是合法的 TileType", () => {
     const validTypes = new Set(Object.values(TileType));
-    createRandomMap(4)
-      .flat()
+    createRandomStage(4)
+      .tiles.flat()
       .forEach((tile) => expect(validTypes.has(tile.type)).toBe(true));
   });
 
@@ -84,10 +84,10 @@ describe("createRandomMap", () => {
     // 多次采样确保命中 Monster 格子
     let found = false;
     for (let attempt = 0; attempt < 30 && !found; attempt++) {
-      const map = createRandomMap(4);
+      const stage = createRandomStage(4);
       for (let y = 0; y < 4; y++) {
         for (let x = 0; x < 4; x++) {
-          const tile = map[y]![x]!;
+          const tile = stage.tiles[y]![x]!;
           if (tile.type === TileType.Monster) {
             expect(tile.agentName).toBe(`monster-${x}-${y}`);
             found = true;
@@ -100,8 +100,8 @@ describe("createRandomMap", () => {
   it("非 Monster 格子的 agentName 为 undefined", () => {
     let hasNonMonster = false;
     for (let attempt = 0; attempt < 30 && !hasNonMonster; attempt++) {
-      const map = createRandomMap(4);
-      for (const tile of map.flat()) {
+      const stage = createRandomStage(4);
+      for (const tile of stage.tiles.flat()) {
         if (tile.type !== TileType.Monster) {
           expect(tile.agentName).toBeUndefined();
           hasNonMonster = true;
@@ -115,40 +115,40 @@ describe("createRandomMap", () => {
 
 describe("createInitialState", () => {
   it("sessionId 被正确赋值", () => {
-    const state = initializeGame("abc-123", createRandomMap(4), DEFAULT_PLAYER);
+    const state = initializeGame("abc-123", createRandomStage(4), DEFAULT_PLAYER);
     expect(state.sessionId).toBe("abc-123");
   });
 
   it("初始 turn=0、phase=player", () => {
-    const state = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const state = initializeGame("s1", createRandomStage(4), DEFAULT_PLAYER);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
 
-  it("mapSize 为 4", () => {
-    const state = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
-    expect(state.mapSize).toBe(4);
+  it("stageSize 为 4", () => {
+    const state = initializeGame("s1", createRandomStage(4), DEFAULT_PLAYER);
+    expect(state.stageSize).toBe(4);
   });
 
   it("玩家初始属性与传入一致", () => {
-    const { player } = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const { player } = initializeGame("s1", createRandomStage(4), DEFAULT_PLAYER);
     expect(player).toEqual(DEFAULT_PLAYER);
   });
 
   it("初始日志为空", () => {
-    const { log } = initializeGame("s1", createRandomMap(4), DEFAULT_PLAYER);
+    const { log } = initializeGame("s1", createRandomStage(4), DEFAULT_PLAYER);
     expect(log).toHaveLength(0);
   });
 
   it("两次调用生成不同的地图（随机性验证）", () => {
-    const s1 = initializeGame("a", createRandomMap(4), DEFAULT_PLAYER);
-    const s2 = initializeGame("b", createRandomMap(4), DEFAULT_PLAYER);
+    const s1 = initializeGame("a", createRandomStage(4), DEFAULT_PLAYER);
+    const s2 = initializeGame("b", createRandomStage(4), DEFAULT_PLAYER);
     // 有极低概率两张地图完全相同，但 16 格分布几乎不可能
-    const types1 = s1.map
+    const types1 = s1.stage.tiles
       .flat()
       .map((t) => t.type)
       .join(",");
-    const types2 = s2.map
+    const types2 = s2.stage.tiles
       .flat()
       .map((t) => t.type)
       .join(",");
@@ -162,7 +162,7 @@ describe("applyReveal", () => {
   let state: ReturnType<typeof initializeGame>;
 
   beforeEach(() => {
-    state = initializeGame("test-session", createRandomMap(4), DEFAULT_PLAYER);
+    state = initializeGame("test-session", createRandomStage(4), DEFAULT_PLAYER);
   });
 
   it("揭开未揭格子：ok=true，tileType 有值，message 有值", () => {
@@ -174,7 +174,7 @@ describe("applyReveal", () => {
 
   it("揭开后 tile.revealed 变为 true", () => {
     applyReveal(state, 1, 2);
-    expect(state.map[2]![1]!.revealed).toBe(true);
+    expect(state.stage.tiles[2]![1]!.revealed).toBe(true);
   });
 
   it("揭开后 turn 加 1", () => {
@@ -215,8 +215,8 @@ describe("applyReveal", () => {
 
   it("揭开所有格子后日志完整保留所有条目", () => {
     // 初始 0 条 + 16 格各 1 条 = 16 条，全部保留不截断
-    for (let y = 0; y < state.mapSize; y++) {
-      for (let x = 0; x < state.mapSize; x++) {
+    for (let y = 0; y < state.stageSize; y++) {
+      for (let x = 0; x < state.stageSize; x++) {
         applyReveal(state, x, y);
       }
     }
@@ -225,24 +225,24 @@ describe("applyReveal", () => {
 
   it("揭开的 message 以该格子类型的 LOG_MESSAGES 开头", () => {
     const result = applyReveal(state, 0, 0);
-    const tileType = state.map[0]![0]!.type;
+    const tileType = state.stage.tiles[0]![0]!.type;
     expect(result.message).toContain(LOG_MESSAGES[tileType]);
   });
 
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
     // 强制将 (0,0) 设为 Monster 格子后揭开
-    state.map[0]![0]!.type = TileType.Monster;
-    (state.map[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
-    state.map[0]![0]!.glyph = GLYPHS[TileType.Monster];
+    state.stage.tiles[0]![0]!.type = TileType.Monster;
+    (state.stage.tiles[0]![0]! as import("@roguelike/shared").Tile).agentName = "monster-0-0";
+    state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Monster];
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBe("monster-0-0");
   });
 
   it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
     // 强制将 (0,0) 设为 Floor 并清除 agentName
-    state.map[0]![0]!.type = TileType.Floor;
-    state.map[0]![0]!.glyph = GLYPHS[TileType.Floor];
-    delete (state.map[0]![0]! as { agentName?: string }).agentName;
+    state.stage.tiles[0]![0]!.type = TileType.Floor;
+    state.stage.tiles[0]![0]!.glyph = GLYPHS[TileType.Floor];
+    delete (state.stage.tiles[0]![0]! as { agentName?: string }).agentName;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();
   });
@@ -252,7 +252,7 @@ describe("applyReveal", () => {
 
 describe("activateMonsterAgent", () => {
   it("将指定 agentName 的 GameAgent 设为 激活", () => {
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     // dev 地图中 monster 在 (0,1)，agentName = "monster-0-1"
     expect(state.activatedTurns["monster-0-1"]).toBeUndefined();
     activateAgent(state, "monster-0-1");
@@ -260,7 +260,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     const countBefore = Object.keys(state.agents).length;
     activateAgent(state, "monster-0-1");
     activateAgent(state, "monster-0-1");
@@ -269,7 +269,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
     expect(Object.keys(state.activatedTurns)).toHaveLength(0);
@@ -289,7 +289,7 @@ describe("triggerAgentThinking", () => {
   });
 
   it("agents 均未激活时什么都不做，log 不变", () => {
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
     // getActiveAgents 返回空列表，调用方不应调用 runAgentLoops（合约：非空才调用）
@@ -331,7 +331,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
     activateAgent(state, "monster-0-1");
@@ -386,7 +386,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
@@ -438,7 +438,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
     activateAgent(state, "monster-0-1");
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;

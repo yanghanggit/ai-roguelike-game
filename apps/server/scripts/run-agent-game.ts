@@ -17,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { GLYPHS, createDevMap, createRandomMap } from "../src/game-map.js";
+import { GLYPHS, createDevStage, createRandomStage } from "../src/game-stage.js";
 import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
@@ -55,7 +55,7 @@ const logger = pino({
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
 function printMap(state: GameState): void {
-  const size = state.mapSize;
+  const size = state.stageSize;
   logger.info(`\n地图 ${size}×${size}  （第 ${state.turn} 回合）`);
 
   // 列坐标头
@@ -63,7 +63,7 @@ function printMap(state: GameState): void {
   logger.info("   +" + "──".repeat(size) + "+");
 
   for (let y = 0; y < size; y++) {
-    const row = state.map[y]!;
+    const row = state.stage.tiles[y]!;
     const cells = row.map((tile) => (tile.revealed ? ` ${tile.glyph}` : " ?")).join("");
     logger.info(` ${y} │${cells} │`);
   }
@@ -94,7 +94,7 @@ function printLog(state: GameState): void {
 
 function printUnrevealed(state: GameState): void {
   const unrevealed: string[] = [];
-  state.map.forEach((row, y) => {
+  state.stage.tiles.forEach((row, y) => {
     row.forEach((tile, x) => {
       if (!tile.revealed) unrevealed.push(`(${x},${y})`);
     });
@@ -120,7 +120,7 @@ program
   .action(async () => {
     // 创建新游戏状态，使用随机地图与初始玩家属性
     const sessionId = crypto.randomUUID();
-    const state = initializeGame(sessionId, createRandomMap(4), {
+    const state = initializeGame(sessionId, createRandomStage(4), {
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -148,9 +148,9 @@ program
   .command("start-dev")
   .description("创建固定布局开发地图（元素位置确定，便于测试与调试）")
   .action(async () => {
-    // 与 start 命令类似，但使用 createDevMap 生成固定地图，便于测试与调试
+    // 与 start 命令类似，但使用 createDevStage 生成固定地图，便于测试与调试
     const sessionId = crypto.randomUUID();
-    const state = initializeGame(sessionId, createDevMap(), {
+    const state = initializeGame(sessionId, createDevStage(), {
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -196,8 +196,8 @@ program
     printLog(state);
     printUnrevealed(state);
 
-    const total = state.mapSize * state.mapSize;
-    const revealed = state.map.flat().filter((t) => t.revealed).length;
+    const total = state.stageSize * state.stageSize;
+    const revealed = state.stage.tiles.flat().filter((t) => t.revealed).length;
     logger.info(`\n进度：${revealed}/${total} 格已揭开`);
   });
 
@@ -279,8 +279,8 @@ program
     printPlayer(state);
     printUnrevealed(state);
 
-    const total = state.mapSize * state.mapSize;
-    const revealed = state.map.flat().filter((t) => t.revealed).length;
+    const total = state.stageSize * state.stageSize;
+    const revealed = state.stage.tiles.flat().filter((t) => t.revealed).length;
     logger.info(`\n进度：${revealed}/${total} 格已揭开`);
 
     if (revealed === total) {

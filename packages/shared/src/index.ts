@@ -1,6 +1,6 @@
-import type { MapSize } from "./config.js";
-export { PORTS, MAP_SIZES } from "./config.js";
-export type { MapSize } from "./config.js";
+import type { StageSize } from "./config.js";
+export { PORTS, STAGE_SIZES } from "./config.js";
+export type { StageSize } from "./config.js";
 
 // ─── Tile ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,10 @@ export interface Tile {
 
 // ─── Map ─────────────────────────────────────────────────────────────────────
 
-export type GameMap = Tile[][];
+export interface Stage {
+  name: string;
+  tiles: Tile[][];
+}
 
 // ─── Player ──────────────────────────────────────────────────────────────────
 
@@ -72,9 +75,9 @@ export interface GameState {
   sessionId: string;
   turn: number;
   phase: TurnPhase;
-  mapSize: MapSize;
+  stageSize: StageSize;
   player: Player;
-  map: GameMap;
+  stage: Stage;
   log: LogEntry[];
   agents: Record<string, GameAgent>;
   activatedTurns: Record<string, number>;

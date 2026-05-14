@@ -6,7 +6,7 @@
  */
 
 import { TileType } from "@roguelike/shared";
-import type { GameMap, MapSize, Tile } from "@roguelike/shared";
+import type { Stage, StageSize, Tile } from "@roguelike/shared";
 
 // ─── Glyphs & weights ─────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ function weightedRandom(): TileType {
  * @param size - 地图边长，支持 `3` 或 `4`。
  * @returns 尺寸为 `size × size` 的二维 `Tile` 数组，所有格子初始为未揭开状态。
  */
-export function createRandomMap(size: MapSize): GameMap {
+export function createRandomStage(size: StageSize, name = "dungeon"): Stage {
   const total = size * size;
   const entranceCount = size === 3 ? 1 : 2;
 
@@ -73,7 +73,7 @@ export function createRandomMap(size: MapSize): GameMap {
     [pool[i], pool[j]] = [pool[j]!, pool[i]!];
   }
 
-  const map: GameMap = [];
+  const tiles: Tile[][] = [];
   for (let y = 0; y < size; y++) {
     const row: Tile[] = [];
     for (let x = 0; x < size; x++) {
@@ -84,9 +84,9 @@ export function createRandomMap(size: MapSize): GameMap {
       }
       row.push(tile);
     }
-    map.push(row);
+    tiles.push(row);
   }
-  return map;
+  return { name, tiles };
 }
 
 /**
@@ -109,7 +109,7 @@ export function createRandomMap(size: MapSize): GameMap {
  *   Wall      (2,0), (2,2)
  *   Floor     其余 9 格
  */
-export function createDevMap(): GameMap {
+export function createDevStage(name = "dev"): Stage {
   const layout: TileType[][] = [
     [TileType.Entrance, TileType.Floor, TileType.Wall, TileType.Floor],
     [TileType.Monster, TileType.Floor, TileType.Floor, TileType.Treasure],
@@ -117,7 +117,7 @@ export function createDevMap(): GameMap {
     [TileType.Floor, TileType.Floor, TileType.Floor, TileType.Special],
   ];
 
-  return layout.map((row, y) =>
+  const tiles = layout.map((row, y) =>
     row.map((type, x) => {
       const tile: Tile = { type, glyph: GLYPHS[type], revealed: false };
       if (type === TileType.Monster) {
@@ -126,4 +126,5 @@ export function createDevMap(): GameMap {
       return tile;
     }),
   );
+  return { name, tiles };
 }

@@ -50,7 +50,7 @@ function MessageLog({
 
 // ─── Game map ─────────────────────────────────────────────────────────────────
 
-function GameMap({
+function GameStage({
   state,
   onReveal,
 }: {
@@ -60,10 +60,10 @@ function GameMap({
   const locked = state.phase === "dungeon";
   return (
     <div
-      className={`game-map${locked ? " map-locked" : ""}`}
-      style={{ gridTemplateColumns: `repeat(${state.mapSize}, 1fr)` }}
+      className={`game-stage${locked ? " stage-locked" : ""}`}
+      style={{ gridTemplateColumns: `repeat(${state.stageSize}, 1fr)` }}
     >
-      {state.map.flatMap((row, y) =>
+      {state.stage.tiles.flatMap((row, y) =>
         row.map((tile, x) => {
           if (!tile.revealed) {
             return (
@@ -190,7 +190,7 @@ export default function App() {
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       <TopBar state={state} onSettings={() => setShowSettings(true)} />
       <MessageLog log={state.log} currentTurn={state.turn} phase={state.phase} />
-      <GameMap state={state} onReveal={sendReveal} />
+      <GameStage state={state} onReveal={sendReveal} />
     </div>
   );
 }
