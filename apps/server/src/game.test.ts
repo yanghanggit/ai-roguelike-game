@@ -5,8 +5,11 @@ import fse from "fs-extra";
 import { TileType } from "@roguelike/shared";
 import { GLYPHS, LOG_MESSAGES, createRandomMap, createDevMap } from "./game-map.js";
 import { initializeGame } from "./game.js";
-import { applyReveal, activateAgent } from "./game-actions.js";
-import { buildTurnTaskPrompt, runAgentLoops } from "./agent-loop-runner.js";
+import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
+import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
+import { buildTurnTaskPrompt } from "./prompts.js";
+import { runAgentLoops } from "./agent-loop-runner.js";
+import { queryStatusTool, strikeTool } from "./agent-tools.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };
 
@@ -285,12 +288,12 @@ describe("triggerAgentThinking", () => {
     delete process.env["DEEPSEEK_API_KEY"];
   });
 
-  it("agents 均未激活时什么都不做，log 不变", async () => {
+  it("agents 均未激活时什么都不做，log 不变", () => {
     const state = initializeGame("s", createDevMap(), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
-    const task = buildTurnTaskPrompt("第 1 回合，玩家揭开了一个新格子。");
-    await runAgentLoops(state, task);
+    // getActiveAgents 返回空列表，调用方不应调用 runAgentLoops（合约：非空才调用）
+    expect(getActiveAgents(state)).toHaveLength(0);
     expect(state.log).toEqual(logBefore);
   });
 
@@ -335,8 +338,12 @@ describe("triggerAgentThinking", () => {
     // turn=1 时被激活，需 turn=2 才能行动
     state.turn = 2;
 
-    const task = buildTurnTaskPrompt(`第 ${state.turn} 回合，玩家揭开了一个新格子。`);
-    await runAgentLoops(state, task);
+    const task = new AgentTask({
+      prompt: buildTurnTaskPrompt(state.turn),
+      tools: [queryStatusTool, strikeTool],
+      maxRounds: AGENT_LOOP_MAX_ROUNDS,
+    });
+    await runAgentLoops(getActiveAgents(state), task, state);
     expect(state.log[state.log.length - 1]!.message).toBe("骷髅战士：怪物发动攻击！");
   });
 
@@ -387,8 +394,12 @@ describe("triggerAgentThinking", () => {
     state.activatedTurns["monster-1-1"] = 0;
     // 两者均在 turn=0 时被激活，需 turn 消进到 1 才能行动
     state.turn = 1;
-    const task = buildTurnTaskPrompt(`第 ${state.turn} 回合，玩家揭开了一个新格子。`);
-    await runAgentLoops(state, task);
+    const task = new AgentTask({
+      prompt: buildTurnTaskPrompt(state.turn),
+      tools: [queryStatusTool, strikeTool],
+      maxRounds: AGENT_LOOP_MAX_ROUNDS,
+    });
+    await runAgentLoops(getActiveAgents(state), task, state);
     expect(state.log.map((e) => e.message)).toContain("骷髅战士：怪物A攻击！");
     expect(state.log.map((e) => e.message)).toContain("测试怪物：怪物B防御！");
   });
@@ -432,8 +443,12 @@ describe("triggerAgentThinking", () => {
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;
     const logBefore = state.log.length;
-    const task = buildTurnTaskPrompt(`第 ${state.turn} 回合，玩家揭开了一个新格子。`);
-    await runAgentLoops(state, task);
+    const task = new AgentTask({
+      prompt: buildTurnTaskPrompt(state.turn),
+      tools: [queryStatusTool, strikeTool],
+      maxRounds: AGENT_LOOP_MAX_ROUNDS,
+    });
+    await runAgentLoops(getActiveAgents(state), task, state);
     expect(state.log.length).toBeGreaterThan(logBefore);
   });
 });

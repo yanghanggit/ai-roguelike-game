@@ -19,4 +19,4 @@ export {
   type ToolDefinition,
   type ToolCall,
 } from "./deepseek-client.js";
-export { GameAgent } from "./game-agent.js";
+export { GameAgent } from "../game-agent.js";

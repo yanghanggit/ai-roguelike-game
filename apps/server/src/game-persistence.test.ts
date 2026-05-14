@@ -5,7 +5,7 @@ import fse from "fs-extra";
 import { createRandomMap, createDevMap } from "./game-map.js";
 import { initializeGame } from "./game.js";
 import { applyReveal } from "./game-actions.js";
-import { GameAgent } from "./ai/game-agent.js";
+import { GameAgent } from "./game-agent.js";
 import { saveGameState, loadGameState } from "./game-persistence.js";
 
 const DEFAULT_PLAYER = { hp: 20, maxHp: 20, attack: 5, defense: 2, level: 1, xp: 0 };

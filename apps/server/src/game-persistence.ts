@@ -13,7 +13,7 @@
 import * as path from "node:path";
 import fse from "fs-extra";
 import type { GameState, AgentMessage } from "@roguelike/shared";
-import { GameAgent } from "./ai/game-agent.js";
+import { GameAgent } from "./game-agent.js";
 import type { ContextMessage } from "./ai/messages.js";
 
 /** 生成带时间戳的存档目录名，格式：`game-state-20260509T143857-123`。 */

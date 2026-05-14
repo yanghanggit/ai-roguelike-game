@@ -6,7 +6,7 @@
 
 import { TileType } from "@roguelike/shared";
 import type { GameState } from "@roguelike/shared";
-import { GameAgent } from "./ai/game-agent.js";
+import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
 import { extractLabel } from "./mock-monsters.js";
@@ -76,6 +76,18 @@ export function activateAgent(state: GameState, agentName: string): void {
     return;
   }
   state.activatedTurns[agentName] = state.turn;
+}
+
+/**
+ * 从 state 中提取本回合应参与推理的 agent 列表。
+ * 仅包含已激活且非本回合首次激活的 agent（新激活的 agent 从下一回合起行动）。
+ */
+export function getActiveAgents(state: GameState): GameAgent[] {
+  return Object.keys(state.activatedTurns)
+    .filter((name) => state.activatedTurns[name]! < state.turn)
+    .map((name) => state.agents[name])
+    .filter((a) => a !== undefined)
+    .map((a) => a as unknown as GameAgent);
 }
 
 // ─── Agent initialization ────────────────────────────────────────────────────

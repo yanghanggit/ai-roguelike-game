@@ -6,7 +6,7 @@
 
 import { TileType } from "@roguelike/shared";
 import type { GameMap, GameState, MapSize, Player } from "@roguelike/shared";
-import { GameAgent } from "./ai/game-agent.js";
+import { GameAgent } from "./game-agent.js";
 import { MOCK_MONSTERS, extractLabel } from "./mock-monsters.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────

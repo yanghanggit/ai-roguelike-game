@@ -20,13 +20,17 @@ import { initializeGame } from "./game.js";
 import {
   applyReveal,
   activateAgent,
+  getActiveAgents,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
   BROADCAST_PLAYER_ACTED,
 } from "./game-actions.js";
-import { buildTurnTaskPrompt, runAgentLoops } from "./agent-loop-runner.js";
-import { GameAgent } from "./ai/game-agent.js";
+import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
+import { buildTurnTaskPrompt } from "./prompts.js";
+import { runAgentLoops } from "./agent-loop-runner.js";
+import { queryStatusTool, strikeTool } from "./agent-tools.js";
+import { GameAgent } from "./game-agent.js";
 import { saveGameState } from "./game-persistence.js";
 import { logger } from "./logger.js";
 
@@ -178,9 +182,15 @@ app.post("/game/dungeon-advance", async (req, res) => {
   }
 
   // 触发所有已激活 agent 的 AI 推理，完成后切回玩家行动阶段
-  const eventSummary = `第 ${state.turn} 回合，玩家揭开了一个新格子。`;
-  const task = buildTurnTaskPrompt(eventSummary);
-  await runAgentLoops(state, task);
+  const agents = getActiveAgents(state);
+  if (agents.length > 0) {
+    const task = new AgentTask({
+      prompt: buildTurnTaskPrompt(state.turn),
+      tools: [queryStatusTool, strikeTool],
+      maxRounds: AGENT_LOOP_MAX_ROUNDS,
+    });
+    await runAgentLoops(agents, task, state);
+  }
 
   // 切回玩家行动阶段，等待下一次 reveal 触发
   state.phase = "player";

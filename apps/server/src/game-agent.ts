@@ -17,7 +17,7 @@ import {
   humanMessage,
   aiMessage,
   toolMessage,
-} from "./messages.js";
+} from "./ai/messages.js";
 
 /**
  * 游戏实体的 AI 代理。

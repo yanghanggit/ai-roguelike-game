@@ -22,13 +22,17 @@ import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
   activateAgent,
+  getActiveAgents,
   initializeAgents,
   broadcastToAgents,
   BROADCAST_ENCOUNTERED,
   BROADCAST_PLAYER_ACTED,
 } from "../src/game-actions.js";
-import { buildTurnTaskPrompt, runAgentLoops } from "../src/agent-loop-runner.js";
-import { GameAgent } from "../src/ai/game-agent.js";
+import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "../src/agent-task.js";
+import { buildTurnTaskPrompt } from "../src/prompts.js";
+import { runAgentLoops } from "../src/agent-loop-runner.js";
+import { queryStatusTool, strikeTool } from "../src/agent-tools.js";
+import { GameAgent } from "../src/game-agent.js";
 import { saveGameState, loadGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
 
@@ -310,9 +314,15 @@ program
     }
 
     // 触发所有已激活 agent 的 AI 推理，完成后切回玩家行动阶段
-    const eventSummary = `第 ${state.turn} 回合，玩家揭开了一个新格子。`;
-    const task = buildTurnTaskPrompt(eventSummary);
-    await runAgentLoops(state, task);
+    const agents = getActiveAgents(state);
+    if (agents.length > 0) {
+      const task = new AgentTask({
+        prompt: buildTurnTaskPrompt(state.turn),
+        tools: [queryStatusTool, strikeTool],
+        maxRounds: AGENT_LOOP_MAX_ROUNDS,
+      });
+      await runAgentLoops(agents, task, state);
+    }
 
     // 切回玩家行动阶段，等待下一次 reveal 触发
     state.phase = "player";
