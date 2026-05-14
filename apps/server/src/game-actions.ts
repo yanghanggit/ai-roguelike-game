@@ -9,7 +9,7 @@ import type { GameState } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
-import { extractLabel } from "./mock-monsters.js";
+import { extractLabel } from "./utils.js";
 import { LOG_MESSAGES } from "./game-map.js";
 import { logger } from "./logger.js";
 

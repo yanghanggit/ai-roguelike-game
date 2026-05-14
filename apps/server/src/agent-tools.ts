@@ -7,7 +7,7 @@
 
 import type { GameState } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
-import { extractLabel } from "./mock-monsters.js";
+import { extractLabel } from "./utils.js";
 import type { AgentTool, ToolHandlerResult } from "./agent-task.js";
 
 // ─── query_status ─────────────────────────────────────────────────────────────
