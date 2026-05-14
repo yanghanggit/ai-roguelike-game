@@ -7,7 +7,6 @@
 import { ActorType } from "@roguelike/shared";
 import type { Stage, GameState, StageSize, Player } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
-import { MOCK_MONSTERS } from "./mock-monsters.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -25,13 +24,10 @@ export function initializeGame(sessionId: string, stage: Stage, player: Player):
   const stageSize = stage.tiles.length as StageSize;
 
   const agents: Record<string, GameAgent> = {};
-  let monsterIndex = 0;
   for (const row of stage.tiles) {
     for (const tile of row) {
-      if (tile.actor?.type === ActorType.Monster) {
-        const template = MOCK_MONSTERS[monsterIndex % MOCK_MONSTERS.length]!;
-        agents[tile.actor.name] = new GameAgent(template.name, template.systemPrompt);
-        monsterIndex++;
+      if (tile.actor?.type === ActorType.Monster && tile.actor.systemPrompt) {
+        agents[tile.actor.name] = new GameAgent(tile.actor.name, tile.actor.systemPrompt);
       }
     }
   }

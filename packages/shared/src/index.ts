@@ -52,6 +52,8 @@ export interface Terrain {
 export interface Actor {
   readonly name: string;
   type: ActorType;
+  /** 怪物的系统提示词，来自 MonsterTemplate；非怪物 actor 无此字段。 */
+  systemPrompt?: string;
 }
 
 // ─── Tile ────────────────────────────────────────────────────────────────────
