@@ -7,8 +7,6 @@
 
 import { TerrainType, ActorType } from "@roguelike/shared";
 import type { Stage, Tile } from "@roguelike/shared";
-import { Actor } from "./actor.js";
-import { Terrain } from "./terrain.js";
 import { MOCK_MONSTERS } from "./mock-monsters.js";
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
@@ -93,7 +91,7 @@ export function createStage(layout: CellSpec[][], name = "dungeon"): Stage {
   const tiles: Tile[][] = layout.map((row, y) =>
     row.map((cell, x) => {
       const tile: Tile = {
-        terrain: new Terrain(TERRAIN_NAMES[cell.terrain], cell.terrain),
+        terrain: { name: TERRAIN_NAMES[cell.terrain], type: cell.terrain },
         revealed: false,
       };
       if (cell.actor !== undefined) {
@@ -102,7 +100,7 @@ export function createStage(layout: CellSpec[][], name = "dungeon"): Stage {
           actorType === ActorType.Monster
             ? MOCK_MONSTERS[monsterIndex++ % MOCK_MONSTERS.length]!.name
             : `${actorType}-${x}-${y}`;
-        tile.actor = new Actor(actorName, actorType);
+        tile.actor = { name: actorName, type: actorType };
       }
       return tile;
     }),

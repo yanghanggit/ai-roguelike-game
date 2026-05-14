@@ -16,8 +16,6 @@ import {
   createStage,
   DEV_STAGE_LAYOUT,
 } from "./game-stage.js";
-import { Actor } from "./actor.js";
-import { Terrain } from "./terrain.js";
 import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
 import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";
@@ -212,15 +210,15 @@ describe("applyReveal", () => {
 
   it("揭开 Monster 格子时，返回値包含 agentName", () => {
     // 强制将 (0,0) 设为 Monster 格子后揭开
-    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
-    state.stage.tiles[0]![0]!.actor = new Actor("monster-0-0", ActorType.Monster);
+    state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
+    state.stage.tiles[0]![0]!.actor = { name: "monster-0-0", type: ActorType.Monster };
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBe("monster-0-0");
   });
 
   it("揭开非 Monster 格子时，返回値的 agentName 为 undefined", () => {
     // 强制将 (0,0) 设为 Floor 并清除 actor
-    state.stage.tiles[0]![0]!.terrain = new Terrain("地板", TerrainType.Floor);
+    state.stage.tiles[0]![0]!.terrain = { name: "地板", type: TerrainType.Floor };
     delete state.stage.tiles[0]![0]!.actor;
     const result = applyReveal(state, 0, 0);
     expect(result.agentName).toBeUndefined();
