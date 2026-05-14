@@ -97,5 +97,4 @@ describe("game-persistence", () => {
     const agent = Object.values(loaded.agents)[0]!;
     expect(agent).toBeInstanceOf(GameAgent);
   });
-
 });
