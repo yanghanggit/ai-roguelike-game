@@ -76,6 +76,46 @@ export const DEV_STAGE_LAYOUT: CellSpec[][] = [
   ],
 ];
 
+/**
+ * 固定布局的 4×4 地图，含 3 只怪物，适合初步游戏测试。
+ *
+ * 布局（x 为列，y 为行）：
+ *
+ *      x=0        x=1        x=2        x=3
+ * y=0  入口 >     地板 ·     墙壁 #     地板 ·
+ * y=1  怪物 E     地板 ·     地板 ·     墙壁 #
+ * y=2  地板 ·     怪物 E     宝箱 $     地板 ·
+ * y=3  墙壁 #     地板 ·     怪物 E     物品 !
+ *
+ * 怪物按 NPCs 顺序分配：骷髅战士(0,1)、史莱姆(1,2)、蝙蝠精(2,3)
+ */
+export const STAGE_4X4_LAYOUT: CellSpec[][] = [
+  [
+    { terrain: TerrainType.Entrance },
+    { terrain: TerrainType.Floor },
+    { terrain: TerrainType.Wall },
+    { terrain: TerrainType.Floor },
+  ],
+  [
+    { terrain: TerrainType.Floor, actor: ActorType.Monster },
+    { terrain: TerrainType.Floor },
+    { terrain: TerrainType.Floor },
+    { terrain: TerrainType.Wall },
+  ],
+  [
+    { terrain: TerrainType.Floor },
+    { terrain: TerrainType.Floor, actor: ActorType.Monster },
+    { terrain: TerrainType.Floor, actor: ActorType.Treasure },
+    { terrain: TerrainType.Floor },
+  ],
+  [
+    { terrain: TerrainType.Wall },
+    { terrain: TerrainType.Floor },
+    { terrain: TerrainType.Floor, actor: ActorType.Monster },
+    { terrain: TerrainType.Floor, actor: ActorType.Item },
+  ],
+];
+
 // ─── NPCs ────────────────────────────────────────────────────────────────────
 
 /** 可用的 NPC（怪物）模板列表，按遍历顺序循环分配给地图中的 Monster 格。 */
