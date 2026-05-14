@@ -109,10 +109,3 @@ export function createStage(layout: CellSpec[][], name = "dungeon"): Stage {
   );
   return { name, tiles };
 }
-
-/**
- * 固定布局的 3×3 开发地图（对应 `DEV_STAGE_LAYOUT`），便于测试与调试。
- */
-export function createDevStage(name = "dev"): Stage {
-  return createStage(DEV_STAGE_LAYOUT, name);
-}

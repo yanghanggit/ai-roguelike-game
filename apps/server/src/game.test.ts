@@ -10,7 +10,12 @@ import {
   TERRAIN_GLYPHS,
   ACTOR_GLYPHS,
 } from "@roguelike/shared";
-import { TERRAIN_LOG_MESSAGES, ACTOR_LOG_MESSAGES, createDevStage } from "./game-stage.js";
+import {
+  TERRAIN_LOG_MESSAGES,
+  ACTOR_LOG_MESSAGES,
+  createStage,
+  DEV_STAGE_LAYOUT,
+} from "./game-stage.js";
 import { Actor } from "./actor.js";
 import { Terrain } from "./terrain.js";
 import { initializeGame } from "./game.js";
@@ -50,22 +55,22 @@ describe("LOG_MESSAGES", () => {
   });
 });
 
-// ─── createStage / createDevStage ────────────────────────────────────────────
+// ─── createStage ────────────────────────────────────────────────────────────
 
-describe("createDevStage", () => {
+describe("createStage", () => {
   it("3×3 地图有正确的行列数", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     expect(stage.tiles).toHaveLength(3);
     stage.tiles.forEach((row) => expect(row).toHaveLength(3));
   });
 
   it("所有格子初始为未揭开（revealed=false）", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     stage.tiles.flat().forEach((tile) => expect(tile.revealed).toBe(false));
   });
 
   it("每个格子的 glyph 与 terrain/actor 一致", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     stage.tiles.flat().forEach((tile) => {
       const expected = tile.actor
         ? ACTOR_GLYPHS[tile.actor.type]
@@ -76,13 +81,13 @@ describe("createDevStage", () => {
 
   it("所有格子的 terrain 是合法的 TerrainType", () => {
     const validTerrains = new Set(Object.values(TerrainType));
-    createDevStage()
+    createStage(DEV_STAGE_LAYOUT)
       .tiles.flat()
       .forEach((tile) => expect(validTerrains.has(tile.terrain.type)).toBe(true));
   });
 
   it("Monster Actor 的 name 来自 MOCK_MONSTERS", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     // dev 地图中 monster 在 (0,1)
     const monsterTile = stage.tiles[1]![0]!;
     expect(monsterTile.actor?.type).toBe(ActorType.Monster);
@@ -90,7 +95,7 @@ describe("createDevStage", () => {
   });
 
   it("有 Actor 的格子地形由 CellSpec 决定（均为 Floor）", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     for (const tile of stage.tiles.flat()) {
       if (tile.actor) {
         expect(tile.terrain.type).toBe(TerrainType.Floor);
@@ -103,28 +108,28 @@ describe("createDevStage", () => {
 
 describe("createInitialState", () => {
   it("sessionId 被正确赋值", () => {
-    const state = initializeGame("abc-123", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("abc-123", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     expect(state.sessionId).toBe("abc-123");
   });
 
   it("初始 turn=0、phase=player", () => {
-    const state = initializeGame("s1", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s1", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     expect(state.turn).toBe(0);
     expect(state.phase).toBe("player");
   });
 
   it("stageSize 为 3", () => {
-    const state = initializeGame("s1", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s1", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     expect(state.stageSize).toBe(3);
   });
 
   it("玩家初始属性与传入一致", () => {
-    const { player } = initializeGame("s1", createDevStage(), DEFAULT_PLAYER);
+    const { player } = initializeGame("s1", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     expect(player).toEqual(DEFAULT_PLAYER);
   });
 
   it("初始日志为空", () => {
-    const { log } = initializeGame("s1", createDevStage(), DEFAULT_PLAYER);
+    const { log } = initializeGame("s1", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     expect(log).toHaveLength(0);
   });
 });
@@ -135,7 +140,7 @@ describe("applyReveal", () => {
   let state: ReturnType<typeof initializeGame>;
 
   beforeEach(() => {
-    state = initializeGame("test-session", createDevStage(), DEFAULT_PLAYER);
+    state = initializeGame("test-session", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
   });
 
   it("揭开未揭格子：ok=true，terrain 有值，message 有值", () => {
@@ -226,7 +231,7 @@ describe("applyReveal", () => {
 
 describe("activateMonsterAgent", () => {
   it("将指定名称的 GameAgent 设为 激活", () => {
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     // dev 地图中 monster 在 (0,1)，actor.name = "怪物.骷髅战士"
     expect(state.activatedTurns["怪物.骷髅战士"]).toBeUndefined();
     activateAgent(state, "怪物.骷髅战士");
@@ -234,7 +239,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("重复激活同一 agent 不会增加数量", () => {
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     const countBefore = Object.keys(state.agents).length;
     activateAgent(state, "怪物.骷髅战士");
     activateAgent(state, "怪物.骷髅战士");
@@ -243,7 +248,7 @@ describe("activateMonsterAgent", () => {
   });
 
   it("初始 state 的 agents 包含地图中所有怪物（均未激活）", () => {
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     // dev 地图有 1 个 monster (0,1)
     expect(Object.keys(state.agents)).toHaveLength(1);
     expect(Object.keys(state.activatedTurns)).toHaveLength(0);
@@ -263,7 +268,7 @@ describe("triggerAgentThinking", () => {
   });
 
   it("agents 均未激活时什么都不做，log 不变", () => {
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     // 地图已有 agent 但均未激活
     const logBefore = [...state.log];
     // getActiveAgents 返回空列表，调用方不应调用 runAgentLoops（合约：非空才调用）
@@ -305,7 +310,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     // dev 地图 monster 在 (0,1)，先揭开让 turn > 0
     applyReveal(state, 0, 1);
     activateAgent(state, "怪物.骷髅战士");
@@ -360,7 +365,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     activateAgent(state, "怪物.骷髅战士");
     // monster-1-1 不在 dev 地图中，手动向 agents 预插入一个测试用 agent
     const { GameAgent: GA } = await import("./ai/index.js");
@@ -412,7 +417,7 @@ describe("triggerAgentThinking", () => {
       }),
     );
 
-    const state = initializeGame("s", createDevStage(), DEFAULT_PLAYER);
+    const state = initializeGame("s", createStage(DEV_STAGE_LAYOUT), DEFAULT_PLAYER);
     activateAgent(state, "怪物.骷髅战士");
     // turn=0 被激活，需 turn=1 才能行动
     state.turn = 1;

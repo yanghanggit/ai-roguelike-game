@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app, sessions } from "./app.js";
-import { createDevStage } from "./game-stage.js";
+import { createStage, DEV_STAGE_LAYOUT } from "./game-stage.js";
 import { Actor } from "./actor.js";
 import { Terrain } from "./terrain.js";
 import type { GameState } from "@roguelike/shared";
@@ -171,9 +171,9 @@ describe("POST /game/player-action — reveal", () => {
   });
 });
 
-describe("createDevStage", () => {
+describe("createStage", () => {
   it("creates a 3×3 map with 1 entrance", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     expect(stage.tiles).toHaveLength(3);
     expect(stage.tiles[0]).toHaveLength(3);
     const entrances = stage.tiles.flat().filter((t) => t.terrain.type === "entrance").length;
@@ -181,7 +181,7 @@ describe("createDevStage", () => {
   });
 
   it("all tiles start unrevealed", () => {
-    const stage = createDevStage();
+    const stage = createStage(DEV_STAGE_LAYOUT);
     expect(stage.tiles.flat().every((t) => !t.revealed)).toBe(true);
   });
 });

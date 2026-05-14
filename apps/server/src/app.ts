@@ -15,7 +15,7 @@ import type {
   ActionResponse,
 } from "@roguelike/shared";
 import { pushStateToClients, registerSseRoute } from "./sse.js";
-import { createDevStage } from "./game-stage.js";
+import { createStage, DEV_STAGE_LAYOUT } from "./game-stage.js";
 import { initializeGame } from "./game.js";
 import {
   applyReveal,
@@ -63,7 +63,7 @@ app.post("/game/start", async (_req, res) => {
   const sessionId = crypto.randomUUID();
 
   // 初始状态：
-  const state = initializeGame(sessionId, createDevStage(), {
+  const state = initializeGame(sessionId, createStage(DEV_STAGE_LAYOUT), {
     hp: 20,
     maxHp: 20,
     attack: 5,

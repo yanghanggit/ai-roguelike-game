@@ -17,7 +17,7 @@ import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import pino from "pino";
-import { createDevStage } from "../src/game-stage.js";
+import { createStage, DEV_STAGE_LAYOUT } from "../src/game-stage.js";
 import { initializeGame } from "../src/game.js";
 import {
   applyReveal,
@@ -115,7 +115,7 @@ program
   .action(async () => {
     // 创建新游戏状态，使用固定地图与初始玩家属性
     const sessionId = crypto.randomUUID();
-    const state = initializeGame(sessionId, createDevStage(), {
+    const state = initializeGame(sessionId, createStage(DEV_STAGE_LAYOUT), {
       hp: 20,
       maxHp: 20,
       attack: 5,
@@ -143,9 +143,9 @@ program
   .command("start-dev")
   .description("创建固定布局开发地图（元素位置确定，便于测试与调试）")
   .action(async () => {
-    // 与 start 命令类似，但使用 createDevStage 生成固定地图，便于测试与调试
+    // 与 start 命令类似，直接使用 DEV_STAGE_LAYOUT 生成固定地图，便于测试与调试
     const sessionId = crypto.randomUUID();
-    const state = initializeGame(sessionId, createDevStage(), {
+    const state = initializeGame(sessionId, createStage(DEV_STAGE_LAYOUT), {
       hp: 20,
       maxHp: 20,
       attack: 5,
