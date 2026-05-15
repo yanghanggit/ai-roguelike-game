@@ -19,13 +19,15 @@ program
   .description("Start client + server in development mode")
   .option("--client-only", `Start only the client (port ${PORTS.client})`)
   .option("--server-only", `Start only the server (port ${PORTS.server})`)
+  .option("--log", "Write server logs to logs/server-<timestamp>.log")
   .action((opts) => {
+    const extraEnv = buildServerEnv({ log: opts.log as boolean | undefined });
     if (opts.clientOnly) {
       run("pnpm", ["--filter", "@roguelike/client", "dev"], ROOT);
     } else if (opts.serverOnly) {
-      run("pnpm", ["--filter", "@roguelike/server", "dev"], ROOT);
+      run("pnpm", ["--filter", "@roguelike/server", "dev"], ROOT, extraEnv);
     } else {
-      run("pnpm", ["turbo", "run", "dev"], ROOT);
+      run("pnpm", ["turbo", "run", "dev"], ROOT, extraEnv);
     }
   });
 
@@ -133,8 +135,19 @@ function exec(cmd: string) {
   execSync(cmd, { cwd: ROOT, stdio: "inherit" });
 }
 
-function run(bin: string, args: string[], cwd: string) {
-  const child = spawn(bin, args, { cwd, stdio: "inherit", shell: true });
+function buildServerEnv(opts: { log?: boolean }): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { SAVES_DIR: resolve(ROOT, "saves") };
+  if (opts.log) {
+    const ts = new Date().toISOString().replace(/:/g, "-").slice(0, 19);
+    env["LOG_FILE"] = resolve(ROOT, `logs/server-${ts}.log`);
+    console.log(`Server logs → ${env["LOG_FILE"]}`);
+  }
+  return env;
+}
+
+function run(bin: string, args: string[], cwd: string, extraEnv: NodeJS.ProcessEnv = {}) {
+  const env = Object.keys(extraEnv).length ? { ...process.env, ...extraEnv } : undefined;
+  const child = spawn(bin, args, { cwd, stdio: "inherit", shell: true, ...(env && { env }) });
   child.on("exit", (code) => process.exit(code ?? 0));
 }
 

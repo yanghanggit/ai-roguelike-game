@@ -35,8 +35,8 @@ import { saveGameState } from "./game-persistence.js";
 import { logger } from "./logger.js";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
-/** 存档根目录，与 CLI 脚本共享同一路径 */
-const SAVES_DIR = path.resolve(__dirname, "../saves");
+/** 存档根目录，优先读取 SAVES_DIR 环境变量（由 CLI 注入），fallback 到包内 saves/ */
+const SAVES_DIR = process.env["SAVES_DIR"] ?? path.resolve(__dirname, "../saves");
 
 const log = logger.child({ module: "Action" });
 

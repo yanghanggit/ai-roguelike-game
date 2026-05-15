@@ -32,8 +32,10 @@ scripts/cli.ts    开发工具 CLI
 
 ```shell
 pnpm cli dev                             # 同时启动 client + server
+pnpm cli dev --log                       # 同时启动，server 日志写入 logs/server-<timestamp>.log
 pnpm cli dev --client-only               # 仅启动 client
 pnpm cli dev --server-only               # 仅启动 server
+pnpm cli dev --server-only --log         # 仅启动 server，并写入日志文件
 pnpm cli build                           # 构建所有包
 pnpm cli build --client-only             # 仅构建 client
 pnpm cli health                          # 检查 server 是否响应

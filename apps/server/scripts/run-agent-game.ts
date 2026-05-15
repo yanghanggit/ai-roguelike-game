@@ -16,7 +16,6 @@ import * as path from "node:path";
 import * as url from "node:url";
 import { Command } from "commander";
 import dotenv from "dotenv";
-import pino from "pino";
 import { createStage, DEV_STAGE_LAYOUT } from "../src/game-stage.js";
 import { initializeGame } from "../src/game.js";
 import {
@@ -34,24 +33,16 @@ import { runAgentLoops } from "../src/agent-loop-runner.js";
 import { queryStatusTool, strikeTool } from "../src/agent-tools.js";
 import { GameAgent } from "../src/game-agent.js";
 import { saveGameState, loadGameState } from "../src/game-persistence.js";
+import { createLogger } from "../src/logger.js";
 import type { GameState } from "@roguelike/shared";
 import { getTileGlyph } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
 /** 所有存档文件都写入此目录，每次操作生成一个带时间戳的快照 */
-const SAVES_DIR = path.resolve(__dirname, "../saves");
+const SAVES_DIR = path.resolve(ROOT, "saves");
 
 dotenv.config({ path: path.resolve(ROOT, ".env") });
-
-/** 运维级日志（操作结果、错误、路径提示），与游戏显示输出分离 */
-const logger = pino({
-  level: "info",
-  transport: {
-    target: "pino-pretty",
-    options: { colorize: true, ignore: "pid,hostname" },
-  },
-});
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -105,7 +96,15 @@ program
   .name("run-agent-game")
   .description("Agent Game CLI — 每条命令是一个原子操作，状态通过 JSON 文件传递")
   .version("0.0.1")
-  .option("-s, --save <path>", "要加载的存档目录路径（save 命令输出的目录）");
+  .option("-s, --save <path>", "要加载的存档目录路径（save 命令输出的目录）")
+  .option("--log-file <path>", "日志同时写入的文件路径（相对于项目根目录）");
+
+program.parseOptions(process.argv);
+const { logFile } = program.opts<{ logFile?: string }>();
+const resolvedLogFile = logFile ? path.resolve(ROOT, logFile) : undefined;
+
+/** 运维级日志（操作结果、错误、路径提示），与游戏显示输出分离 */
+const logger = createLogger({ file: resolvedLogFile });
 
 // ─── start ────────────────────────────────────────────────────────────────────
 
