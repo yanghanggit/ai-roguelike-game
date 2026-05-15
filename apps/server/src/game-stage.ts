@@ -18,17 +18,6 @@ const TERRAIN_NAMES: Record<TerrainType, string> = {
   [TerrainType.Entrance]: "入口",
 };
 
-export const TERRAIN_LOG_MESSAGES: Record<TerrainType, string> = {
-  [TerrainType.Floor]: "地面空无一物。",
-  [TerrainType.Wall]: "坚固的墙壁挡住了去路。",
-  [TerrainType.Entrance]: "通往下一层的入口！",
-};
-
-export const ACTOR_LOG_MESSAGE = "一只怪物潜伏于此！";
-export const SPECIAL_LOG_MESSAGE = "有些不寻常的东西在涌动……";
-
-export const ITEM_LOG_MESSAGE = "你发现了一件物品！";
-
 // ─── CellSpec & layout ────────────────────────────────────────────────────────
 
 /** 布局中单个格子的构建数据：terrain 必填，occupant 可选。 */

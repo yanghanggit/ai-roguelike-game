@@ -35,7 +35,7 @@ import { queryStatusTool, strikeTool } from "../src/agent-tools.js";
 import { GameAgent } from "../src/game-agent.js";
 import { saveGameState, loadGameState } from "../src/game-persistence.js";
 import type { GameState } from "@roguelike/shared";
-import { getTileChar } from "@roguelike/shared";
+import { getTileGlyph } from "@roguelike/shared";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
@@ -65,7 +65,7 @@ function printMap(state: GameState): void {
 
   for (let y = 0; y < size; y++) {
     const row = state.stage.tiles[y]!;
-    const cells = row.map((tile) => (tile.revealed ? ` ${getTileChar(tile)}` : " ?")).join("");
+    const cells = row.map((tile) => (tile.revealed ? ` ${getTileGlyph(tile)}` : " ?")).join("");
     logger.info(` ${y} │${cells} │`);
   }
   logger.info("   +" + "──".repeat(size) + "+");
@@ -266,7 +266,7 @@ program
         x,
         y,
         terrain: result.terrain?.type,
-        actorType: result.actorType,
+        actorType: result.occupantType,
         phase: state.phase,
         savedPath,
       },
@@ -276,7 +276,7 @@ program
 
     if (result.message) {
       logger.info(
-        `✓ (${x},${y})：${result.actorType ?? result.terrain?.type}  →  ${result.message}`,
+        `✓ (${x},${y})：${result.occupantType ?? result.terrain?.type}  →  ${result.message}`,
       );
     } else {
       logger.info(`  (${x},${y}) 已揭开，无变化`);

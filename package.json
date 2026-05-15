@@ -1,6 +1,7 @@
 {
   "name": "ai-roguelike-game",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "turbo run dev",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^25.8.0",
     "commander": "^14.0.3",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",

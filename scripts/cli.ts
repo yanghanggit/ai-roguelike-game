@@ -88,6 +88,7 @@ program
   .command("lint")
   .description("Type-check all packages")
   .action(() => {
+    exec("pnpm exec tsc --noEmit");
     exec("pnpm turbo run lint");
   });
 

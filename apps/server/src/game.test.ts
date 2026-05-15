@@ -11,14 +11,13 @@ import {
   SPECIAL_GLYPH,
   ITEM_GLYPH,
 } from "@roguelike/shared";
+import { createStage, DEV_STAGE_LAYOUT } from "./game-stage.js";
 import {
   TERRAIN_LOG_MESSAGES,
   ACTOR_LOG_MESSAGE,
   SPECIAL_LOG_MESSAGE,
   ITEM_LOG_MESSAGE,
-  createStage,
-  DEV_STAGE_LAYOUT,
-} from "./game-stage.js";
+} from "./game-actions.js";
 import { initializeGame } from "./game.js";
 import { applyReveal, activateAgent, getActiveAgents } from "./game-actions.js";
 import { AgentTask, AGENT_LOOP_MAX_ROUNDS } from "./agent-task.js";

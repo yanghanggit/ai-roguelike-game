@@ -9,13 +9,19 @@ import type { GameState, Occupant, Terrain } from "@roguelike/shared";
 import { GameAgent } from "./game-agent.js";
 import { DeepSeekClient } from "./ai/deepseek-client.js";
 
-import {
-  TERRAIN_LOG_MESSAGES,
-  ACTOR_LOG_MESSAGE,
-  SPECIAL_LOG_MESSAGE,
-  ITEM_LOG_MESSAGE,
-} from "./game-stage.js";
 import { logger } from "./logger.js";
+
+// ─── Log messages ─────────────────────────────────────────────────────────────
+
+export const TERRAIN_LOG_MESSAGES: Record<TerrainType, string> = {
+  [TerrainType.Floor]: "地面空无一物。",
+  [TerrainType.Wall]: "坚固的墙壁挡住了去路。",
+  [TerrainType.Entrance]: "通往下一层的入口！",
+};
+
+export const ACTOR_LOG_MESSAGE = "一只怪物潜伏于此！";
+export const SPECIAL_LOG_MESSAGE = "有些不寻常的东西在涌动……";
+export const ITEM_LOG_MESSAGE = "你发现了一件物品！";
 
 const log = logger.child({ module: "GameActions" });
 
